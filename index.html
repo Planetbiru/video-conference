@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conference with Main Screen</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+    <script src="resizable-panel.js"></script>
+</head>
+
+<body>
+
+    <div class="root-container">
+        <div class="main-container left-panel">
+            <div class="main-content">
+                <video id="main-screen" autoplay muted playsinline></video>
+                <!-- Thumbnails row -->
+                <div id="video-container" class="video-thumbnails"></div>
+            </div>
+        </div>
+
+        <!-- Control buttons like Teams -->
+
+        <div class="resize-bar"></div>
+
+        <!-- Floating Chat -->
+        <div class="chat-panel right-panel">
+            
+            <div class="control-bar">
+                <button onclick="startCamera(this)"
+                    class="bg-blue-600 font-semibold py-2 px-6 rounded-full hover:bg-blue-700 transition">
+                    <i class="fa fa-camera"></i>
+                </button>
+                <button onclick="shareScreen(this)"
+                    class="bg-blue-600 font-semibold py-2 px-6 rounded-full hover:bg-blue-700 transition">
+                    <i class="fa fa-desktop"></i>
+                </button>
+                <button id="promoteBtn" onclick="promoteMyStream(this)" disabled
+                    class="bg-green-600 font-semibold py-2 px-6 rounded-full hover:bg-green-700 transition">
+                    <i class="fa fa-star"></i>
+                </button>
+            </div>
+
+
+            <div class="chat-box-container">
+            <div id="chat-box" class="chat-box"></div>
+            <div class="send-file-preview">
+            </div>
+            </div>
+            <div class="chat-input-area">
+                <form action="" onsubmit="sendChat(); return false;">
+                    <input id="chatInput" placeholder="Type a message..." autocomplete="off">
+                    <button type="button" onclick="selectFile()">📎</button>
+                    <button type="submit">➤</button>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+    <div style="display: none;"><input type="file" id="fileInput" /></div>
+    <script src="app.js"></script>
+    <script>
+        let resizablePanels;
+        document.addEventListener('DOMContentLoaded', function () {
+        
+            console.log('init');
+            resizablePanels = new ResizablePanels('.root-container', '.left-panel', '.right-panel', '.resize-bar', 200);
+
+            // Resize and redraw ERD
+            let updatedWidth = document.querySelector('.root-container .left-panel').offsetWidth;
+            if (isNaN(updatedWidth) || updatedWidth == 0) {
+                updatedWidth = parseInt(resizablePanels.getLeftPanelWidth());
+            }
+            if (isNaN(updatedWidth) || updatedWidth == 0)
+            {
+                updatedWidth = 240;
+            }
+            updatedWidth = updatedWidth - 240;
+            resizablePanels.init();
+
+            document.getElementById('fileInput').addEventListener('change', function (event) {
+                let file = event.target.files[0];
+                previewFile()
+            });
+
+        });
+    </script>
+</body>
+
+</html>

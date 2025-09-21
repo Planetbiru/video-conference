@@ -1,0 +1,220 @@
+/* === Global === */
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+}
+
+/* === Main Container === */
+.main-container {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+#main-screen {
+  width: 100%;
+  height: calc(100vh - 140px);
+  -o-object-fit: contain;
+     object-fit: contain;
+}
+
+/* === Thumbnails === */
+.video-thumbnails {
+  overflow-x: auto;
+}
+.video-thumbnails::-webkit-scrollbar {
+  display: none;
+}
+
+.video-wrapper {
+  min-width: 120px;
+  max-width: 160px;
+  background: #374151;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: inline-block;
+  margin: 5px;
+}
+
+.video-wrapper video {
+  width: 100%;
+  height: 80px;
+  -o-object-fit: cover;
+     object-fit: cover;
+  display: block;
+  cursor: pointer;
+}
+
+.video-controls {
+  padding: 2px 10px;
+  color: #ffffff;
+  font-size: 12px;
+}
+
+/* === Control Bar === */
+.control-bar {
+  flex: 0 0 auto;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 4px 8px;
+  box-sizing: border-box;
+  border-bottom: 1px solid #DDDDDD;
+}
+.control-bar button {
+  height: auto;
+  min-height: 32px;
+  line-height: 1.2;
+  padding: 4px 4px;
+  border-radius: 6px;
+  background-color: transparent;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.9;
+  color: #3a3a3a;
+}
+.control-bar button:hover {
+  background-color: transparent;
+  opacity: 1;
+}
+.control-bar button:disabled {
+  background-color: #6b7280;
+  cursor: not-allowed;
+}
+.control-bar button.status-sharing {
+  position: relative;
+}
+.control-bar button.status-sharing .fa::after {
+  content: "";
+  display: block;
+  width: 2px;
+  height: 16px;
+  top: 6px;
+  left: 12px;
+  transform: rotate(45deg);
+  background-color: red;
+  opacity: 0.8;
+  position: absolute;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+}
+.btn-danger:hover {
+  background-color: #b91c1c;
+}
+
+/* === Chat Panel === */
+.chat-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.chat-panel .chat-box-container {
+  padding: 0.5rem;
+  overflow-y: auto;
+  font-size: 0.875rem;
+  height: calc(100vh - 80px);
+  box-sizing: border-box;
+}
+.chat-panel .chat-box input[type=text] {
+  color: #1e1e1e;
+}
+.chat-panel .chat-input-area {
+  border-top: 1px solid #d1d1d1;
+  padding: 0.5rem 0 0.5rem 0.5rem;
+  white-space: nowrap;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.chat-panel .chat-input-area input {
+  border: none;
+  border-radius: 3px;
+  padding: 0.2rem 0.6rem;
+  color: #1e1e1e;
+  width: calc(100% - 80px);
+}
+.chat-panel .chat-input-area button {
+  padding: 0.2rem 0.5rem;
+  min-width: 30px;
+  background: #2563eb;
+  border-radius: 3px;
+}
+.chat-panel .chat-input-area button:hover {
+  background: #1e40af;
+}
+
+/* === Root Container === */
+.root-container {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+}
+.root-container .left-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  position: relative;
+  overflow: hidden;
+  width: calc(70% - 5px);
+  box-sizing: border-box;
+  border-right: 1px solid #ccc;
+  background-color: #fbfbfb;
+}
+.root-container .right-panel {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  width: calc(30% - 5px);
+  box-sizing: border-box;
+  border-left: 1px solid #ccc;
+  background-color: #fbfbfb;
+}
+.root-container .resize-bar {
+  cursor: ew-resize;
+  background-color: #fafafa;
+  width: 10px;
+  position: relative;
+  height: 100vh;
+  z-index: 100;
+}
+.root-container .resize-bar::before, .root-container .resize-bar::after {
+  content: "";
+  width: 0;
+  height: 20px;
+  background-color: #ccc;
+  position: absolute;
+  top: calc(50% - 10px);
+}
+.root-container .resize-bar::before {
+  left: 3px;
+  border-left: 1px solid #777;
+}
+.root-container .resize-bar::after {
+  right: 3px;
+  border-right: 1px solid #777;
+}
+
+/* === File Preview & Received Images === */
+.send-file-preview, .image-received {
+  text-align: center;
+}
+.send-file-preview img, .image-received img {
+  max-width: 100%;
+  box-sizing: border-box;
+  display: inline-block;
+}/*# sourceMappingURL=style.css.map */
