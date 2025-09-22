@@ -23,8 +23,137 @@ let socket;
 
 const incomingFiles = {};
 
+let controlIcons = [
+    '.btn-share-camera',
+    '.btn-share-screen',
+    '.btn-promote-stream'
+];
 
+function markShareCameraActive()
+{
+    let btns = document.querySelectorAll('.btn-share-camera');
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            btn.classList.add('status-sharing');
+        });
+    }
+}
 
+function markShareCameraInactive()
+{
+    let btns = document.querySelectorAll('.btn-share-camera');
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            btn.classList.remove('status-sharing');
+        });
+    }
+}
+
+function isShareCameraActive()
+{
+    let btns = document.querySelectorAll('.btn-share-camera');
+    let active = false;
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            active = btn.classList.contains('status-sharing');
+            if(active)
+            {
+                return true;
+            }
+        });
+    }
+    return false;
+}
+
+function markShareScreenActive()
+{
+    let btns = document.querySelectorAll('.btn-share-screen');
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            btn.classList.add('status-sharing');
+        });
+    }
+}
+
+function markShareScreenInactive()
+{
+    let btns = document.querySelectorAll('.btn-share-screen');
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            btn.classList.remove('status-sharing');
+        });
+    }
+}
+
+function isShareScreenActive()
+{
+    let btns = document.querySelectorAll('.btn-share-screen');
+    let active = false;
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            active = btn.classList.contains('status-sharing');
+            if(active)
+            {
+                return true;
+            }
+        });
+    }
+    return false;
+}
+
+function markPromoteStreamActive()
+{
+    let btns = document.querySelectorAll('.btn-promote-stream');
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            btn.classList.add('status-sharing');
+        });
+    }
+}
+
+function markPromoteStramInavtive()
+{
+    let btns = document.querySelectorAll('.btn-promote-stream');
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            btn.classList.remove('status-sharing');
+        });
+    }
+}
+
+function isPromoteStreamActive()
+{
+    let btns = document.querySelectorAll('.btn-promote-stream');
+    let active = false;
+    if(btns?.length)
+    {
+        btns.forEach(btn => {
+            active = btn.classList.contains('status-sharing');
+            if(active)
+            {
+                return true;
+            }
+        });
+    }
+    return false;
+}
+
+function switchStreamTo(idToPromote)
+{
+    if (idToPromote === clientId) {
+        setMainScreenStream(localStream);
+    } else {
+        waitAndAttachToMain(idToPromote);
+    }
+}
 
 function joinRoom(roomId) {
     if (!roomId) {
@@ -131,11 +260,7 @@ function connectSocket(roomId) {
             selected.checked = true;
             const idToPromote = selected.value === 'local' ? clientId : selected.value;
             // locally attach immediately (if ready) and then broadcast to ask others to show same main
-            if (idToPromote === clientId) {
-                setMainScreenStream(localStream);
-            } else {
-                waitAndAttachToMain(idToPromote);
-            }
+            switchStreamTo(idToPromote);
             return;
         }
 
@@ -149,11 +274,7 @@ function connectSocket(roomId) {
             selected.checked = true;
             const idToPromote = selected.value === 'local' ? clientId : selected.value;
             // locally attach immediately (if ready) and then broadcast to ask others to show same main
-            if (idToPromote === clientId) {
-                setMainScreenStream(localStream);
-            } else {
-                waitAndAttachToMain(idToPromote);
-            }
+            switchStreamTo(idToPromote);
             return;
         }
 
@@ -269,7 +390,7 @@ function connectSocket(roomId) {
 
 function putChat(msg) {
     const chatBox = document.getElementById('chat-box');
-    chatBox.innerHTML += `<div><strong>${msg.from}:</strong> ${msg.text}</div>`;
+    chatBox.innerHTML += `\r\n<div><strong>${msg.from}:</strong> ${msg.text}</div>`;
     setTimeout(function () {
         document.querySelector('.chat-box-container').scrollTop = document.querySelector('.chat-box-container').scrollHeight;
     }, 100);
@@ -425,8 +546,6 @@ function ensureRemoteVideoElement(peerId) {
     radio.addEventListener('change', () => {
         if (radio.checked) {
             waitAndAttachToMain(peerId);
-            // inform others that we requested promoting (optional)
-            // socket.send(JSON.stringify({ type: 'streamUpdate', from: clientId }));
         }
     });
 
@@ -658,11 +777,7 @@ function promoteMyStream(buttonElement) {
     selected.checked = true;
     const idToPromote = selected.value === 'local' ? clientId : selected.value;
     // locally attach immediately (if ready) and then broadcast to ask others to show same main
-    if (idToPromote === clientId) {
-        setMainScreenStream(localStream);
-    } else {
-        waitAndAttachToMain(idToPromote);
-    }
+    switchStreamTo(idToPromote);
     return;
 }
 
@@ -682,11 +797,7 @@ function promoteSelected() {
     }
     const idToPromote = selected.value === 'local' ? clientId : selected.value;
     // locally attach immediately (if ready) and then broadcast to ask others to show same main
-    if (idToPromote === clientId) {
-        setMainScreenStream(localStream);
-    } else {
-        waitAndAttachToMain(idToPromote);
-    }
+    switchStreamTo(idToPromote);
     // notify others so they also can try to attach when ready
     socket.send(JSON.stringify({ type: 'streamUpdate', from: clientId }));
 }
