@@ -46,6 +46,15 @@
             'reference' => 'e4490cabc77465aaee90b20cfc9a770f8c04be6b',
             'dev_requirement' => false,
         ),
+        'planetbiru/magic-object' => array(
+            'pretty_version' => '3.19.0',
+            'version' => '3.19.0.0',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../planetbiru/magic-object',
+            'aliases' => array(),
+            'reference' => 'bec60f86eed9e366b9b77966b03421b2454a9905',
+            'dev_requirement' => false,
+        ),
         'psr/http-message' => array(
             'pretty_version' => '1.0.1',
             'version' => '1.0.1.0',

@@ -219,7 +219,7 @@ body {
 .root-container .resize-bar {
   cursor: ew-resize;
   background-color: #fafafa;
-  width: 10px;
+  width: 8px;
   position: relative;
   height: 100vh;
   z-index: 100;
@@ -233,11 +233,11 @@ body {
   top: calc(50% - 10px);
 }
 .root-container .resize-bar::before {
-  left: 3px;
+  left: 2px;
   border-left: 1px solid #777;
 }
 .root-container .resize-bar::after {
-  right: 3px;
+  right: 2px;
   border-right: 1px solid #777;
 }
 

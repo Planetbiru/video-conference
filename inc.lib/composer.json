@@ -1,5 +1,6 @@
 {
     "require": {
-        "cboden/ratchet": "^0.4.4"
+        "cboden/ratchet": "^0.4.4",
+        "planetbiru/magic-object": "^3.19"
     }
 }

@@ -23,6 +23,8 @@ let socketUrl = `${wsProtocol}://${wsHost}:${wsPort}?roomId=${encodeURIComponent
 )}`;
 let socket;
 
+
+const CHUNK_SIZE = 16 * 1024; // 16KB per chunk
 const incomingFiles = {};
 
 const CLASS_MUTED = "muted";
@@ -31,19 +33,24 @@ const SELECTOR_PROMOTE_STREAM = ".btn-promote-stream";
 const SELECTOR_SHARE_CAMERA = ".btn-share-camera";
 const SELECTOR_SHARE_SCREEN = ".btn-share-screen";
 const SELECTOR_SHARE_MICROPHONE = ".btn-share-microphone";
+
 const MESSAGE_TYPE_STREAM_UPDATE = "streamUpdate";
 const MESSAGE_TYPE_OFFER = "offer";
 const MESSAGE_TYPE_CANDIDATE = "candidate";
 const MESSAGE_TYPE_DEMOTE_STREAM = "demoteStream";
 const MESSAGE_TYPE_PROMOTE_STREAM = "promoteStream";
 const MESSAGE_TYPE_PEERS = "peers";
+const MESSAGE_TYPE_PEAR_LEAVE = "pearLeave";
 const MESSAGE_TYPE_STOP_SHARING = "stopSharing";
 const MESSAGE_TYPE_CHAT = "chat";
 const MESSAGE_TYPE_ANSWER = "answer";
 const MESSAGE_TYPE_REQUEST_CHAT_HISTORY = "requestChatHistory";
-const MESSAGE_TYPE_FILE_META = "file-meta";
-const MESSAGE_TYPE_FILE_CHUNK = "file-chunk";
-const MESSAGE_TYPE_FILE_COMPLETE = "file-complete";
+const MESSAGE_TYPE_FILE_META = "fileMeta";
+const MESSAGE_TYPE_FILE_CHUNK = "fileChunk";
+const MESSAGE_TYPE_FILE_COMPLETE = "fileComplete";
+const MESSAGE_TYPE_FILE_REQUEST = "fileRequest";
+const MESSAGE_TYPE_FILE_UPDATE = "fileUpdate";
+const MESSAGE_TYPE_NEW_PEAR = "newPeer";
 
 let controlIcons = [
   SELECTOR_SHARE_CAMERA,
@@ -454,6 +461,23 @@ function connectSocket(roomId) {
     // --- handler pesan ---
     if (msg.type === MESSAGE_TYPE_FILE_META) {
       incomingFiles[msg.fileId] = { meta: msg, from: peerId, chunks: [] };
+      putFilePlaceholder(msg);
+      return;
+    }
+
+    if(msg.type === MESSAGE_TYPE_FILE_UPDATE)
+    {
+      if(msg.complete)
+      {
+        let elements = document.querySelectorAll(`.url-href[data-file-id="${msg.fileId}"]`);
+        if(elements)
+        {
+          elements.forEach(element=>{
+           element.dataset.complete = 'true';
+          });
+        }
+        requestCompletedFile();
+      }
       return;
     }
     if (msg.type === MESSAGE_TYPE_FILE_CHUNK) {
@@ -479,26 +503,25 @@ function connectSocket(roomId) {
         const url = URL.createObjectURL(blob);
 
         const chatBox = document.getElementById("chat-box");
-        const div = document.createElement("div");
-
-        if (fileData.meta.mimeType.startsWith("image/")) {
-          div.innerHTML = `<strong>${msg.from}:</strong><br>
-                                    <div class="image-received">
-                                    <img src="${url}" alt="${fileData.meta.name}">
-                                    </div>
-                                    <a href="${url}" download="${fileData.meta.name}">📎 ${fileData.meta.name}</a>`;
-          setTimeout(function () {
-            document.querySelector(".chat-box-container").scrollTop =
-              document.querySelector(".chat-box-container").scrollHeight;
-          }, 100);
-        } else {
-          div.innerHTML = `<strong>${msg.from}:</strong> 
-                                    <a href="${url}" download="${fileData.meta.name}">
-                                        📎 ${fileData.meta.name}
-                                    </a>`;
+        let els1 = document.querySelectorAll(
+          `.url-src[data-file-id="${msg.fileId}"]`
+        );
+        let els2 = document.querySelectorAll(
+          `.url-href[data-file-id="${msg.fileId}"]`
+        );
+        if (els1) {
+          els1.forEach((el) => {
+            el.setAttribute("src", url);
+            el.dataset.loaded = 'true';
+          });
+        }
+        if (els2) {
+          els2.forEach((el) => {
+            el.setAttribute("href", url);
+            el.dataset.loaded = 'true';
+          });
         }
 
-        chatBox.appendChild(div);
         chatBox.scrollTop = chatBox.scrollHeight;
 
         delete incomingFiles[msg.fileId];
@@ -509,6 +532,7 @@ function connectSocket(roomId) {
     // chatHistory
     if (msg.type === "chatHistory") {
       putChatHistory(msg.chatHistory);
+      loadMissedFiles();
       return;
     }
 
@@ -592,7 +616,7 @@ function connectSocket(roomId) {
       return;
     }
 
-    if (msg.type === "newPeer") {
+    if (msg.type === MESSAGE_TYPE_NEW_PEAR) {
       ensureRemoteVideoElement(msg.peerId);
       updatePeer(msg.peerId, msg.peerDetail);
       // create offer if our ID is smaller (simple glare avoidance)
@@ -638,7 +662,7 @@ function connectSocket(roomId) {
       return;
     }
 
-    if (msg.type === "peerLeave") {
+    if (msg.type === MESSAGE_TYPE_PEAR_LEAVE) {
       if (peers[msg.peerId]) {
         peers[msg.peerId].close();
         delete peers[msg.peerId];
@@ -675,6 +699,94 @@ function connectSocket(roomId) {
   };
 }
 
+function putHistoryChat(msg) {
+ 
+  if(msg.type === MESSAGE_TYPE_CHAT)
+  {
+    putChat(msg);
+  }
+  else if(msg.type === MESSAGE_TYPE_FILE_META)
+  {
+   putFilePlaceholder(msg);
+  }
+}
+
+function putFilePlaceholder(msg) {
+  if(document.querySelector(`.url-src[data-file-id="${msg.fileId}"]`))
+  {
+    // No duplicated placeholder
+    return;
+  }
+
+  const chatBox = document.getElementById("chat-box");
+  const div = document.createElement("div");
+  let realtime = msg.realtime ? 'true' : 'false';
+  let complete = msg.complete ? 'true' : 'false';
+
+  
+
+  if (msg?.mimeType?.startsWith("image/")) {
+    div.innerHTML = `<strong>${msg.from}:</strong><br>
+        <div class="image-received">
+        <img data-file-id="${msg.fileId}" data-realtime="${realtime}" data-complete="${complete}" data-loaded="false" data-process="false" class="url-src" src="image.svg" alt="${msg.name}">
+        </div>
+        <a data-file-id="${msg.fileId}" data-realtime="${realtime}" data-complete="${complete}" data-loaded="false" data-process="false" class="url-href" href="image.svg" download="${msg.name}">📎 ${msg.name}</a>`;
+  } else {
+    div.innerHTML = `<strong>${msg.from}:</strong> 
+        <a data-file-id="${msg.fileId}" data-realtime="${realtime}" data-complete="${complete}" data-loaded="false" data-process="false" class="url-href" href="image.svg" download="${msg.name}">
+            📎 ${msg.name}
+        </a>`;
+  }
+  chatBox.appendChild(div);
+  
+}
+let isMissedFilesLoaded = false;
+
+function loadMissedFiles()
+{
+  if(isMissedFilesLoaded)
+  {
+    return;
+  }
+  requestCompletedFile();
+  checkInterval = setInterval(()=>{
+    requestIncompletedFile();
+  }, 5000);
+  isMissedFilesLoaded = true;
+}
+
+let checkInterval = setInterval('', 100000);
+function requestIncompletedFile()
+{
+  let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="false"][data-loaded="false"]');
+  if(elements)
+  {
+    elements.forEach(file=>{
+      socket.send(
+        JSON.stringify({ type: MESSAGE_TYPE_FILE_UPDATE, from: clientId, fileId: file.dataset.fileId})
+      );
+    });
+  }
+  else
+  {
+    clearTimeout(checkInterval);
+    isMissedFilesLoaded = false;
+  }
+}
+function requestCompletedFile()
+{
+  let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="true"][data-loaded="false"]');
+  if(elements)
+  {
+    elements.forEach(element=>{
+      socket.send(
+        JSON.stringify({ type: MESSAGE_TYPE_FILE_REQUEST, from: clientId, fileId: element.dataset.fileId})
+      );
+      element.dataset.process = 'true';
+    });
+  }
+}
+
 function putChat(msg) {
   const chatBox = document.getElementById("chat-box");
   chatBox.innerHTML += `\r\n<div><strong>${msg.from}:</strong> ${msg.text}</div>`;
@@ -685,7 +797,7 @@ function putChat(msg) {
 }
 
 function putChatHistory(data) {
-  data.forEach((msg) => putChat(msg));
+  data.forEach((msg) => putHistoryChat(msg));
 }
 
 function updatePeer(peerId, peerDetail) {
@@ -850,7 +962,7 @@ function ensureRemoteVideoElement(peerId) {
 
   const label = document.createElement("label");
   label.htmlFor = `radio-${peerId}`;
-  label.textContent = ` Participant (${peerId.substring(0, 4)})`;
+  label.textContent = ` Participant (${peerId?.substring(0, 4)})`;
 
   controls.appendChild(radio);
   controls.appendChild(label);
@@ -927,7 +1039,9 @@ async function startCamera(buttonElement) {
     return;
   }
   try {
-    if (localStream) localStream.getTracks().forEach((t) => t.stop());
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop());
+    }
 
     localStream = await navigator.mediaDevices.getUserMedia({
       video: true,
@@ -936,7 +1050,9 @@ async function startCamera(buttonElement) {
     localVideo.srcObject = localStream;
     setMainScreenStream(localStream);
     const radioLocal = document.getElementById("radio-local");
-    if (radioLocal) radioLocal.checked = true;
+    if (radioLocal) {
+      radioLocal.checked = true;
+    }
     console.log("Local camera stream started.");
 
     if (buttonElement) {
@@ -991,21 +1107,17 @@ async function shareScreen(buttonElement) {
     }
     console.log("Screen sharing started.");
 
-    // tambahkan kelas status-sharing ke tombol
     if (buttonElement) {
       buttonElement.classList.add(CLASS_SHARING);
     }
 
     await replaceOrAddTracksToPeers(localStream);
 
-    // ketika user berhenti share layar
     screenTrack.onended = async () => {
-      // hapus kelas status-sharing
       if (buttonElement) {
         buttonElement.classList.remove(CLASS_SHARING);
       }
 
-      // restart kamera
       await startCamera(buttonElement);
     };
 
@@ -1230,7 +1342,6 @@ async function stopSharing() {
   }
 }
 
-const CHUNK_SIZE = 16 * 1024; // 16KB per chunk
 
 // --- helper ---
 function arrayBufferToBase64(buffer) {
@@ -1250,11 +1361,18 @@ function generateFileId() {
   return "file-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
 }
 
+function getFileExtension(filename) {
+  const parts = filename.split(".");
+  return parts.length > 1 ? parts.pop().toLowerCase() : "";
+}
+
 // --- kirim file ---
 async function sendFile() {
   const fileInput = document.getElementById("fileInput");
   const file = fileInput.files[0];
-  if (!file) return;
+  if (!file) {
+    return;
+  }
 
   const fileId = generateFileId();
 
@@ -1262,9 +1380,13 @@ async function sendFile() {
     type: MESSAGE_TYPE_FILE_META,
     fileId: fileId,
     name: file.name,
+    extension: getFileExtension(file.name),
     size: file.size,
     mimeType: file.type,
     from: clientId,
+    realtime: true,
+    complete: false,
+    chunkSize: CHUNK_SIZE
   };
   socket.send(JSON.stringify(meta));
 
@@ -1278,7 +1400,11 @@ async function sendFile() {
       JSON.stringify({
         type: MESSAGE_TYPE_FILE_CHUNK,
         fileId: fileId,
+        name: file.name,
+        extension: getFileExtension(file.name),
         from: clientId,
+        offset: offset,
+        chunkSize: CHUNK_SIZE,
         data: base64Chunk,
       })
     );

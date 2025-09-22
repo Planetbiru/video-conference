@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "65c9a8f87141c77ac44bfffa60df8163",
+    "content-hash": "97a26e654c3a8e8fee3ab9f4403b4511",
     "packages": [
         {
             "name": "cboden/ratchet",
@@ -220,6 +220,45 @@
                 }
             ],
             "time": "2023-04-17T16:00:37+00:00"
+        },
+        {
+            "name": "planetbiru/magic-object",
+            "version": "3.19.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Planetbiru/MagicObject.git",
+                "reference": "bec60f86eed9e366b9b77966b03421b2454a9905"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Planetbiru/MagicObject/zipball/bec60f86eed9e366b9b77966b03421b2454a9905",
+                "reference": "bec60f86eed9e366b9b77966b03421b2454a9905",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=5.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "MagicObject\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-3.0-only"
+            ],
+            "authors": [
+                {
+                    "name": "Kamshory"
+                }
+            ],
+            "description": "MagicObject",
+            "support": {
+                "issues": "https://github.com/Planetbiru/MagicObject/issues",
+                "source": "https://github.com/Planetbiru/MagicObject/tree/3.19.0"
+            },
+            "time": "2025-09-19T11:54:30+00:00"
         },
         {
             "name": "psr/http-message",

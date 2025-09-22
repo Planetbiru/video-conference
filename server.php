@@ -8,26 +8,24 @@ use Ratchet\WebSocket\WsServer;
 
 require __DIR__ . '/inc.lib/vendor/autoload.php';
 
-class SignallingServer implements MessageComponentInterface {
+class SignallingServer implements MessageComponentInterface
+{
     protected $clients; // SplObjectStorage
     protected $users;   // peerId => user info
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->clients = new \SplObjectStorage;
         $this->users   = array();
     }
 
-    public function onOpen(ConnectionInterface $conn) {
-        // Get query string for session id & roomId
+    public function onOpen(ConnectionInterface $conn)
+    {
         $uri = $conn->httpRequest->getUri();
         parse_str($uri->getQuery(), $query);
         $sessionId = isset($query['PHPSESSID']) ? $query['PHPSESSID'] : null;
         $roomId    = isset($query['roomId']) ? $query['roomId'] : 'default';
-
-        // Generate peerId
         $peerId = substr(md5(uniqid()), 0, 8);
-
-        // Get user data from session
         $user = $this->getUserFromSession($sessionId);
 
         // Save mapping
@@ -42,7 +40,6 @@ class SignallingServer implements MessageComponentInterface {
 
         echo "New connection! PeerId={$peerId}, Room={$roomId}, User=" . $this->users[$peerId]['username'] . "\n";
 
-        // Cari semua peer di room yang sama
         $peersInRoom = array();
         foreach ($this->users as $id => $info) {
             if ($info['roomId'] === $roomId) {
@@ -50,7 +47,6 @@ class SignallingServer implements MessageComponentInterface {
             }
         }
 
-        // Kirim daftar peserta ke client baru
         $conn->send(json_encode(array(
             'type'        => 'peers',
             'myId'        => $peerId,
@@ -58,7 +54,6 @@ class SignallingServer implements MessageComponentInterface {
             'peerDetails' => $peersInRoom
         )));
 
-        // Broadcast newPeer ke room yang sama
         foreach ($this->clients as $client) {
             $targetPeerId = $this->clients[$client];
             if ($client !== $conn && $this->users[$targetPeerId]['roomId'] === $roomId) {
@@ -72,20 +67,36 @@ class SignallingServer implements MessageComponentInterface {
         }
     }
 
-    public function loadHistory($roomId) {
-        $path = dirname(__DIR__)."/history_".$roomId.".txt";
+    public function getFileMeta($fileId) {
+
+    }
+
+    public function loadHistory($roomId)
+    {
+        $dir = dirname(__DIR__) . "/";
+        $path = dirname(__DIR__) . "/history_" . $roomId . ".txt";
         if (!file_exists($path)) return array();
         $lines = file($path);
         $data = array();
-        foreach ($lines as $line) {   
+        foreach ($lines as $line) {
             if (trim($line) !== '') {
-                $data[] = json_decode($line, true);
+                $row = json_decode($line, true);
+                if ($row['type'] == 'fileMeta') {
+                    $fileId = $row['fileId'];
+                    $saved = json_decode(file_get_contents($dir . $fileId . "-meta.json"), true);
+                    if (!empty($saved)) {
+                        $row = $saved;
+                    }
+                }
+                $data[] = $row;
             }
         }
         return $data;
     }
 
-    public function onMessage(ConnectionInterface $from, $msg) {
+    public function onMessage(ConnectionInterface $from, $msg)
+    {
+        $dir = dirname(__DIR__) . "/";
         $peerId = $this->clients[$from];
         $user   = $this->users[$peerId];
         $roomId = $user['roomId'];
@@ -104,8 +115,7 @@ class SignallingServer implements MessageComponentInterface {
                     }
                 }
             }
-        }
-        elseif (isset($data['type']) && $data['type'] === 'setMainScreen') {
+        } elseif (isset($data['type']) && $data['type'] === 'setMainScreen') {
             foreach ($this->clients as $client) {
                 $targetPeerId = $this->clients[$client];
                 if ($client !== $from && $this->users[$targetPeerId]['roomId'] === $roomId) {
@@ -116,31 +126,165 @@ class SignallingServer implements MessageComponentInterface {
                     )));
                 }
             }
-        }
-        elseif (isset($data['type']) && $data['type'] === 'requestChatHistory') {
+        } elseif (isset($data['type']) && $data['type'] === 'requestChatHistory') {
             $from->send(json_encode(array(
                 'type'        => 'chatHistory',
                 'chatHistory' => $this->loadHistory($roomId)
             )));
-        }
-        else {
-            // Broadcast ke semua peer di room yang sama
-            foreach ($this->clients as $client) {
-                $targetPeerId = $this->clients[$client];
-                if ($client !== $from && $this->users[$targetPeerId]['roomId'] === $roomId) {
-                    $client->send($msg);
+        } elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
+            $fileId = $data['fileId'];
+            $metaFile = $dir . $fileId . "-meta.json";
+            if (!is_file($metaFile)) {
+                // meta tidak tersedia
+                $from->send(json_encode(['type' => 'error', 'message' => 'meta not found', 'fileId' => $fileId]));
+                return;
+            }
+
+            $meta = json_decode(file_get_contents($metaFile), true);
+            if (empty($meta) || empty($meta['complete'])) {
+                // belum selesai di-upload
+                $from->send(json_encode(['type' => 'error', 'message' => 'file not available yet', 'fileId' => $fileId]));
+                return;
+            }
+
+            // gunakan chunkSize dari meta namun batasi maksimal agar tidak membludak
+            $chunkSize = isset($meta['chunkSize']) ? (int)$meta['chunkSize'] : 16 * 1024;
+            if ($chunkSize <= 0 || $chunkSize > 128 * 1024) $chunkSize = 16 * 1024; // default 16KB, max 128KB
+
+            $fileSize  = isset($meta['size']) ? (int)$meta['size'] : 0;
+            $extension = isset($meta['extension']) ? $meta['extension'] : '';
+
+            // Kirim meta singkat dulu (klien butuh tahu nama/size/extension)
+            $sendMeta = [
+                'type'      => 'fileMeta',
+                'fileId'    => $meta['fileId'],
+                'name'      => $meta['name'],
+                'extension' => $extension,
+                'size'      => $fileSize,
+                'chunkSize' => $chunkSize,
+                'from'      => $meta['from']
+            ];
+            $from->send(json_encode($sendMeta));
+
+            $filePath = $dir . $fileId . ($extension ? '.' . $extension : '');
+
+            if (!is_file($filePath) || $fileSize === 0) {
+                $from->send(json_encode(['type' => 'error', 'message' => 'file not found or empty', 'fileId' => $fileId]));
+                return;
+            }
+
+            $fh = fopen($filePath, 'rb');
+            if (!$fh) {
+                $from->send(json_encode(['type' => 'error', 'message' => 'failed to open file', 'fileId' => $fileId]));
+                return;
+            }
+
+            // loop dan kirim per-chunk. Hati2 dengan memory: unset & collect GC segera
+            $bytesSent = 0;
+            $chunksBeforeGc = 32; // setelah 32 chunk, panggil gc_collect_cycles
+            $chunkCounter = 0;
+
+            while (!feof($fh) && $bytesSent < $fileSize) {
+                $remaining = $fileSize - $bytesSent;
+                $read = ($remaining >= $chunkSize) ? $chunkSize : $remaining;
+                $buff = fread($fh, $read);
+                if ($buff === false || $buff === '') break;
+
+                // base64 encode chunk (perlu agar bisa disisipkan di JSON)
+                $encoded = base64_encode($buff);
+
+                $result = [
+                    'type'      => 'fileChunk',
+                    'fileId'    => $meta['fileId'],
+                    'offset'    => $bytesSent,
+                    'chunkSize' => strlen($buff), // actual bytes read
+                    'data'      => $encoded,
+                    'from'      => $meta['from']
+                ];
+
+                $from->send(json_encode($result));
+
+                // update counters & free memori secepat mungkin
+                $bytesSent += strlen($buff);
+                $chunkCounter++;
+
+                // hapus variabel besar supaya memory bisa dibebaskan
+                unset($buff, $encoded, $result);
+
+                // ringankan event loop / network buffer tiap beberapa chunk
+                if (($chunkCounter % 4) === 0) {
+                    // beri waktu singkat supaya socket bisa flush; nilai boleh disesuaikan
+                    usleep(1000); // 1ms
+                }
+                if (($chunkCounter % $chunksBeforeGc) === 0) {
+                    gc_collect_cycles();
                 }
             }
+
+            fclose($fh);
+
+            // selesai: beri tahu klien
+            $from->send(json_encode([
+                'type'   => 'fileComplete',
+                'fileId' => $fileId,
+                'from'   => $meta['from']
+            ]));
+        } else {
+
+            if (isset($data['type']) && $data['type'] === 'fileMeta') {
+                $fileId = $data['fileId'];
+                $data['realtime'] = false; // Set realtime to false
+                file_put_contents($dir . $fileId . "-meta.json", json_encode($data));
+            } else if (isset($data['type']) && $data['type'] === 'fileComplete') {
+                $fileId = $data['fileId'];
+                $meta = json_decode(file_get_contents($dir . $fileId . "-meta.json"), true);
+                $meta['complete'] = true; // Set complete to true
+                file_put_contents($dir . $fileId . "-meta.json", json_encode($meta));
+            } else if (isset($data['type']) && $data['type'] === 'fileChunk') {
+                $fileId = $data['fileId'];
+                $extension = $data['extension'];
+                $offset = (int) $data['offset'];
+                if ($offset === 0) {
+                    file_put_contents($dir . $fileId . "." . $extension, base64_decode($data['data']));
+                } else {
+                    file_put_contents($dir . $fileId . "." . $extension, base64_decode($data['data']), FILE_APPEND);
+                }
+            }
+
+             // Only for peer who request update
+            if (isset($data['type']) && $data['type'] === 'fileUpdate') {
+                $fileId = $data['fileId'];
+                $meta = json_decode(file_get_contents($dir . $fileId . "-meta.json"), true);
+                $meta['type'] = 'fileUpdate';
+                $msg = json_encode($meta);
+                $from->send($msg);
+            }
+            else if (isset($data['type']) && $data['type'] === 'fileRequest') {
+            }
+            else
+            {
+
+                // Broadcast to all peers in room
+                foreach ($this->clients as $client) {
+                    $targetPeerId = $this->clients[$client];
+                    if ($client !== $from && $this->users[$targetPeerId]['roomId'] === $roomId) {
+                        $client->send($msg);
+                    }
+                }
+            }
+
+           
         }
 
-        // Simpan chat history per room
-        if (isset($data['type']) && $data['type'] === 'chat') {
+        // Save history to file
+        if (isset($data['type']) && ($data['type'] === 'chat' || $data['type'] === 'fileMeta')) {
             $str = json_encode($data);
-            file_put_contents(dirname(__DIR__)."/history_".$roomId.".txt", $str."\r\n", FILE_APPEND);
+            file_put_contents(dirname(__DIR__) . "/history_" . $roomId . ".txt", $str . "\r\n", FILE_APPEND);
         }
     }
 
-    public function onClose(ConnectionInterface $conn) {
+    public function onClose(ConnectionInterface $conn)
+    {
         $peerId = $this->clients[$conn];
         $roomId = $this->users[$peerId]['roomId'];
         echo "Client disconnected: {$peerId} from Room={$roomId}\n";
@@ -160,12 +304,14 @@ class SignallingServer implements MessageComponentInterface {
         }
     }
 
-    public function onError(ConnectionInterface $conn, \Exception $e) {
-        echo "Error: ".$e->getMessage()."\n";
+    public function onError(ConnectionInterface $conn, \Exception $e)
+    {
+        echo "Error: " . $e->getMessage() . "\n";
         $conn->close();
     }
 
-    private function getUserFromSession($sessionId) {
+    private function getUserFromSession($sessionId)
+    {
         if (!$sessionId) return array();
 
         $path = ini_get("session.save_path");
