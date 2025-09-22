@@ -192,7 +192,7 @@ function connectSocket(roomId) {
 
         // --- handler pesan ---
         if (msg.type === "file-meta") {
-            incomingFiles[msg.fileId] = { meta: msg, chunks: [] };
+            incomingFiles[msg.fileId] = { meta: msg, from: peerId, chunks: [] };
             return;
         }
         if (msg.type === "file-chunk") {

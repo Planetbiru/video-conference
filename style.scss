@@ -88,7 +88,6 @@ body {
     }
 
     &:disabled {
-      background-color: #6b7280;
       cursor: not-allowed;
     }
 
@@ -173,8 +172,21 @@ body {
   display: flex;
   width: 100%;
   overflow: hidden;
+  
 
-  .left-panel {
+  .left-panel{
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;    // biar child lebar normal
+    justify-content: flex-start; // mulai dari atas
+    position: relative;
+    overflow: hidden;
+    width: calc(15% - 10px);
+    box-sizing: border-box;
+    border-right: 1px solid #eeeeee;
+    background-color: #fbfbfb;
+  }
+  .main-panel {
     display: flex;
     flex-direction: column;
     align-items: stretch;    // biar child lebar normal
@@ -183,7 +195,8 @@ body {
     overflow: hidden;
     width: calc(70% - 5px);
     box-sizing: border-box;
-    border-right: 1px solid #ccc;
+    border-left: 1px solid #eeeeee;
+    border-right: 1px solid #eeeeee;
     background-color: #fbfbfb;
   }
 
@@ -192,9 +205,9 @@ body {
     flex-direction: column;
     position: relative;
     overflow: hidden;
-    width: calc(30% - 5px);
+    width: calc(15% - 5px);
     box-sizing: border-box;
-    border-left: 1px solid #ccc;
+    border-left: 1px solid #eeeeee;
     background-color: #fbfbfb;
   }
 
