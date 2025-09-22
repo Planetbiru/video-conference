@@ -13,8 +13,23 @@
 
 <body>
 
-    <div class="root-container">
-        <div class="main-container left-panel">
+    <div class="root-container flex w-full h-screen">
+
+        <!-- New Left Panel: User List -->
+        <div class="left-panel">
+            <h3 class="p-2 font-semibold">Users</h3>
+            <ul id="user-list" class="p-2">
+                <li>User 1</li>
+                <li>User 2</li>
+                <li>User 3</li>
+            </ul>
+        </div>
+
+        <!-- Resize bar between left and main -->
+        <div class="resize-bar resize-bar-left"></div>
+
+        <!-- Main Panel: previously left-panel -->
+        <div class="main-panel">
             <div class="main-content">
                 <video id="main-screen" autoplay muted playsinline></video>
                 <!-- Thumbnails row -->
@@ -22,24 +37,28 @@
             </div>
         </div>
 
-        <!-- Control buttons like Teams -->
+        <!-- Resize bar between main and right -->
+        <div class="resize-bar resize-bar-right"></div>
 
-        <div class="resize-bar"></div>
-
+        <!-- Right Panel: Chat -->
         <!-- Floating Chat -->
         <div class="chat-panel right-panel">
             
             <div class="control-bar">
+                <button onclick="startMicrophone(this)"
+                    class="btn-share-microphone muted">
+                    <i class="fa fa-microphone"></i>
+                </button>
                 <button onclick="startCamera(this)"
-                    class="btn-share-camera bg-blue-600 font-semibold py-2 px-6 rounded-full hover:bg-blue-700 transition">
+                    class="btn-share-camera">
                     <i class="fa fa-camera"></i>
                 </button>
                 <button onclick="shareScreen(this)"
-                    class="btn-share-screen bg-blue-600 font-semibold py-2 px-6 rounded-full hover:bg-blue-700 transition">
+                    class="btn-share-screen">
                     <i class="fa fa-desktop"></i>
                 </button>
                 <button id="promoteBtn" onclick="promoteMyStream(this)" disabled
-                    class="btn-promote-screen bg-green-600 font-semibold py-2 px-6 rounded-full hover:bg-green-700 transition">
+                    class="btn-promote-screen">
                     <i class="fa fa-star"></i>
                 </button>
             </div>
@@ -58,16 +77,24 @@
                 </form>
             </div>
         </div>
-        
+
     </div>
+
     <div style="display: none;"><input type="file" id="fileInput" /></div>
     <script src="app.js"></script>
     <script>
         let resizablePanels;
         document.addEventListener('DOMContentLoaded', function () {
         
-            console.log('init');
-            resizablePanels = new ResizablePanels('.root-container', '.left-panel', '.right-panel', '.resize-bar', 200);
+            resizablePanels = new ResizableThreePanels(
+                '.root-container',       // Parent container
+                '.left-panel',           // Left panel (user list)
+                '.main-panel',           // Main panel (video)
+                '.right-panel',          // Right panel (chat)
+                '.resize-bar-left',      // Resize bar between left and main
+                '.resize-bar-right',     // Resize bar between main and right
+                120                      // Minimum width for panels
+            );
 
             // Resize and redraw ERD
             let updatedWidth = document.querySelector('.root-container .left-panel').offsetWidth;

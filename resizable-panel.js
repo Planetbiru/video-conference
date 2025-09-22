@@ -1,184 +1,154 @@
 /**
- * Class representing resizable panels with a resize bar between them.
+ * Class representing resizable three panels with two resize bars between them.
  */
-class ResizablePanels {
+class ResizableThreePanels {
     /**
-     * Create a ResizablePanels instance.
-     * @param {string} selector - The parent selector of the panels.
-     * @param {string} leftPanelSelector - The selector for the left panel.
-     * @param {string} rightPanelSelector - The selector for the right panel.
-     * @param {string} resizeBarSelector - The selector for the resize bar.
-     * @param {number} [minWidth=100] - The minimum width for the left panel.
+     * @param {string} selector - Parent container selector
+     * @param {string} leftPanelSelector - Left panel selector
+     * @param {string} mainPanelSelector - Main panel selector
+     * @param {string} rightPanelSelector - Right panel selector
+     * @param {string} resizeBarLeftSelector - Selector for the left resize bar
+     * @param {string} resizeBarRightSelector - Selector for the right resize bar
+     * @param {number} [minWidth=100] - Minimum width for each panel
      */
-    constructor(selector, leftPanelSelector, rightPanelSelector, resizeBarSelector, minWidth = 100) {
+    constructor(selector, leftPanelSelector, mainPanelSelector, rightPanelSelector, resizeBarLeftSelector, resizeBarRightSelector, minWidth = 100) {
         this.selector = selector;
         this.element = document.querySelector(this.selector);
-        this.leftPanel = document.querySelector(selector + " " + leftPanelSelector);
-        this.rightPanel = document.querySelector(selector + " " + rightPanelSelector);
-        this.resizeBar = document.querySelector(selector + " " + resizeBarSelector);
-        this.minWidth = minWidth;  // Minimum width for the left panel
+        this.leftPanel = document.querySelector(`${selector} ${leftPanelSelector}`);
+        this.mainPanel = document.querySelector(`${selector} ${mainPanelSelector}`);
+        this.rightPanel = document.querySelector(`${selector} ${rightPanelSelector}`);
+        this.resizeBarLeft = document.querySelector(`${selector} ${resizeBarLeftSelector}`);
+        this.resizeBarRight = document.querySelector(`${selector} ${resizeBarRightSelector}`);
+        this.minWidth = minWidth;
+
         this.isResizing = false;
         this.lastDownX = 0;
-        this.localStorageKey = this.selector + 'leftPanelWidth';
-        this.init();
+        this.currentResizer = null;
+
+        this.localStorageKeyLeft = `${this.selector}leftPanelWidth`;
+        this.localStorageKeyMain = `${this.selector}mainPanelWidth`;
 
         this._boundHandleMouseMove = this.handleMouseMove.bind(this);
         this._boundStopResizing = this.stopResizing.bind(this);
 
+        this.init();
     }
 
-    /**
-     * Initialize event listeners for resizing functionality and window resizing.
-     */
     init() {
-        // Start resizing when clicking on the resize bar
-        this.resizeBar.addEventListener('mousedown', (e) => this.startResizing(e));
+        // Start resizing for left resizer
+        this.resizeBarLeft.addEventListener('mousedown', (e) => this.startResizing(e, 'left'));
 
-        // Adjust layout when the window is resized
+        // Start resizing for right resizer
+        this.resizeBarRight.addEventListener('mousedown', (e) => this.startResizing(e, 'right'));
+
+        // Window resize
         window.addEventListener('resize', () => this.onWindowResize());
-        this.loadPanelWidth();
+
+        this.loadPanelWidths();
     }
 
-    /**
-     * Handle the mouse movement during resizing.
-     * @param {MouseEvent} e - The mouse move event.
-     */
-    handleMouseMove(e) {
-       if (this.isResizing) {
-            let offset = e.clientX - this.lastDownX;
-            if (offset !== 0) {
-                this.hasResized = true; // Set flag jika ada pergerakan
-            }
-            let leftPanelWidth = this.leftPanel.offsetWidth + offset;
-
-            // Ensure the left panel's width is within the minWidth and max bounds
-            if (leftPanelWidth >= this.minWidth && leftPanelWidth <= window.innerWidth - this.minWidth) {
-                let parentNode = this.leftPanel.parentNode;
-                let parentWidth = parentNode.offsetWidth;
-                let rightPanelWidth = parentWidth - leftPanelWidth - 10; // 10px space between panels
-
-                // If the right panel width becomes smaller than minWidth, adjust left panel width
-                if (rightPanelWidth < this.minWidth) {
-                    leftPanelWidth = parentWidth - this.minWidth - 10; // Adjust left panel to maintain minWidth for right panel
-                    rightPanelWidth = this.minWidth; // Set right panel to minWidth
-                }
-
-                // Set the new widths for the panels
-                this.leftPanel.style.width = leftPanelWidth + 'px';
-                this.rightPanel.style.width = rightPanelWidth + 'px';
-                this.lastDownX = e.clientX;
-
-                // Save the new width of the left panel in localStorage
-                localStorage.setItem(this.localStorageKey, leftPanelWidth);
-            }
-        }
+    disableSelection(element) {
+        element.style.mozUserSelect = 'none';
+        element.style.msUserSelect = 'none';
+        element.style.userSelect = 'none';
     }
-    
-    /**
-     * Disables text selection on the specified element by setting the appropriate 
-     * CSS properties to prevent text selection in different browsers.
-     * 
-     * @param {HTMLElement} element - The DOM element on which text selection should be disabled.
-     */
-    disableSelection(element)
-    {
-        element.style.mozUserSelect = 'none';    // Firefox
-        element.style.msUserSelect = 'none';     // IE/Edge
-        element.style.userSelect = 'none';       // Standard
+
+    enableSelection(element) {
+        element.style.mozUserSelect = 'auto';
+        element.style.msUserSelect = 'auto';
+        element.style.userSelect = 'auto';
     }
-    
-    /**
-     * Enables text selection on the specified element by resetting the CSS properties 
-     * that control text selection to their default behavior.
-     * 
-     * @param {HTMLElement} element - The DOM element on which text selection should be enabled.
-     */
-    enableSelection(element)
-    {
-        element.style.mozUserSelect = 'auto';    // Firefox
-        element.style.msUserSelect = 'auto';     // IE/Edge
-        element.style.userSelect = 'auto';       // Standard
-    }
-    
-    /**
-     * Start the resizing process when the mouse is pressed down on the resize bar.
-     * @param {MouseEvent} e - The mouse down event.
-     */
-    startResizing(e) {
+
+    startResizing(e, resizerType) {
         this.isResizing = true;
-        this.hasResized = false; // Reset flag
+        this.hasResized = false;
+        this.currentResizer = resizerType;
         this.lastDownX = e.clientX;
+
         this.disableSelection(this.leftPanel);
+        this.disableSelection(this.mainPanel);
         this.disableSelection(this.rightPanel);
+
         this.element.addEventListener('mousemove', this._boundHandleMouseMove);
         this.element.addEventListener('mouseup', this._boundStopResizing);
     }
 
-    /**
-     * Stop the resizing process when the mouse is released.
-     */
+    handleMouseMove(e) {
+        if (!this.isResizing) return;
+
+        let offset = e.clientX - this.lastDownX;
+        if (offset !== 0) this.hasResized = true;
+
+        let parentWidth = this.element.offsetWidth;
+
+        if (this.currentResizer === 'left') {
+            let newLeftWidth = this.leftPanel.offsetWidth + offset;
+            let newMainWidth = this.mainPanel.offsetWidth - offset;
+
+            // Limit widths
+            if (newLeftWidth < this.minWidth || newMainWidth < this.minWidth) return;
+
+            this.leftPanel.style.width = newLeftWidth + 'px';
+            this.mainPanel.style.width = newMainWidth + 'px';
+
+            this.lastDownX = e.clientX;
+
+            localStorage.setItem(this.localStorageKeyLeft, newLeftWidth);
+        } else if (this.currentResizer === 'right') {
+            let newMainWidth = this.mainPanel.offsetWidth + offset;
+            let newRightWidth = this.rightPanel.offsetWidth - offset;
+
+            if (newMainWidth < this.minWidth || newRightWidth < this.minWidth) return;
+
+            this.mainPanel.style.width = newMainWidth + 'px';
+            this.rightPanel.style.width = newRightWidth + 'px';
+
+            this.lastDownX = e.clientX;
+
+            localStorage.setItem(this.localStorageKeyMain, newMainWidth);
+        }
+    }
+
     stopResizing() {
         this.isResizing = false;
+        this.currentResizer = null;
 
         this.element.removeEventListener('mousemove', this._boundHandleMouseMove);
         this.element.removeEventListener('mouseup', this._boundStopResizing);
 
-        if (this.hasResized) {
-            // do nothing
-        }
-
         this.enableSelection(this.leftPanel);
+        this.enableSelection(this.mainPanel);
         this.enableSelection(this.rightPanel);
     }
 
-    /**
-     * Resize the panels based on the saved width for the left panel.
-     * @param {string} savedLeftPanelWidth - The saved width of the left panel from localStorage.
-     */
-    doResize(savedLeftPanelWidth) {
-        if (savedLeftPanelWidth) {
-            // If a saved width exists, apply it
-            let leftPanelWidth = parseInt(savedLeftPanelWidth, 10);
-            let parentNode = this.leftPanel.parentNode;
-            let parentWidth = parentNode.offsetWidth;
-            let rightPanelWidth = parentWidth - leftPanelWidth - 10;
+    doResize(savedLeftWidth, savedMainWidth) {
+        let parentWidth = this.element.offsetWidth;
+        let leftWidth = parseInt(savedLeftWidth) || 200;
+        let mainWidth = parseInt(savedMainWidth) || 400;
+        let rightWidth = parentWidth - leftWidth - mainWidth - 20; // 2 bars ~ 10px each
 
-            // Ensure that right panel's width is not less than minWidth
-            if (rightPanelWidth < this.minWidth) {
-                rightPanelWidth = this.minWidth;
-                leftPanelWidth = parentWidth - rightPanelWidth - 10; // Adjust left panel width accordingly
-            }
+        if (leftWidth < this.minWidth) leftWidth = this.minWidth;
+        if (mainWidth < this.minWidth) mainWidth = this.minWidth;
+        if (rightWidth < this.minWidth) rightWidth = this.minWidth;
 
-            // Adjust the panels based on the saved width
-            this.leftPanel.style.width = leftPanelWidth + 'px';
-            this.rightPanel.style.width = rightPanelWidth + 'px';
-        }
+        this.leftPanel.style.width = leftWidth + 'px';
+        this.mainPanel.style.width = mainWidth + 'px';
+        this.rightPanel.style.width = rightWidth + 'px';
     }
 
-    /**
-     * Get the saved width of the left panel from localStorage.
-     * @returns {number} The width of the left panel stored in localStorage.
-     */
     getLeftPanelWidth() {
-        let savedWidth = localStorage.getItem(this.localStorageKey);
-        if (!savedWidth) {
-            savedWidth = '200';
-        }
-        return savedWidth;
+        return localStorage.getItem(this.localStorageKeyLeft) || '200';
     }
 
-    /**
-     * Load the saved width of the left panel and apply it.
-     */
-    loadPanelWidth() {
-        this.doResize(this.getLeftPanelWidth());
+    getMainPanelWidth() {
+        return localStorage.getItem(this.localStorageKeyMain) || '400';
     }
 
-    /**
-     * Recalculate the panel widths based on the new window size.
-     */
+    loadPanelWidths() {
+        this.doResize(this.getLeftPanelWidth(), this.getMainPanelWidth());
+    }
+
     onWindowResize() {
-        // Recalculate the panel widths based on the new window size
-        this.doResize(this.getLeftPanelWidth());
+        this.loadPanelWidths();
     }
 }
