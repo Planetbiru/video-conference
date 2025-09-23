@@ -85,9 +85,9 @@
             </div>
             <div class="chat-input-area">
                 <form action="" onsubmit="sendChat(); return false;">
-                    <input id="chatInput" placeholder="Type a message..." autocomplete="off">
-                    <button type="button" onclick="selectFile()">📎</button>
+                    <textarea id="chatInput" placeholder="Type a message..." autocomplete="off"></textarea>
                     <button type="submit">➤</button>
+                    <button type="button" onclick="selectFile()">📎</button>
                 </form>
             </div>
         </div>
@@ -110,7 +110,7 @@
                 120                      // Minimum width for panels
             );
 
-            new ResizableVertical('#top-panel', '#bottom-panel', '.resize-bar-horizontal', 120);
+            new ResizableVertical('#top-panel', '#bottom-panel', '.resize-bar-horizontal', 140);
 
             // Resize and redraw ERD
             let updatedWidth = document.querySelector('.root-container .left-panel').offsetWidth;
@@ -153,9 +153,42 @@
                 // scroll horizontal sesuai deltaY
                 videoContainer.scrollLeft += event.deltaY;
             }, { passive: false });
+            
+            
+            const chatInput = document.getElementById("chatInput");
+
+            autoResizeTextarea(chatInput, 200, function (newHeight) {
+                let trim = newHeight + 58;
+                console.log("Tinggi textarea sekarang:", newHeight + "px");
+                // contoh: resize elemen lain
+                // document.querySelector(".chat-box-container").style.marginBottom = newHeight + "px";
+                let elem = document.querySelector('.chat-panel .chat-box-container');
+                elem.style.height = `calc(100vh - ${trim}px)`;
+            });
 
         });
-    </script>
+        
+
+    function autoResizeTextarea(textarea, maxHeight = 200, callback = null) {
+    function resize() {
+        textarea.style.height = "auto"; // reset dulu agar bisa shrink
+        let newHeight = Math.min(textarea.scrollHeight, maxHeight);
+        textarea.style.height = newHeight + "px";
+
+        if (typeof callback === "function") {
+            callback(newHeight);
+        }
+    }
+
+    // resize saat input berubah
+    textarea.addEventListener("input", resize);
+
+    // jalankan sekali saat awal
+    resize();
+}
+
+</script>
+
     <script src="app.js"></script>
 </body>
 

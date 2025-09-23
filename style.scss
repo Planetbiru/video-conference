@@ -28,6 +28,7 @@ body {
 /* === Thumbnails === */
 .video-thumbnails {
   overflow-x: auto;
+  padding: 5px;
 
   &::-webkit-scrollbar {
     display: none;
@@ -153,7 +154,7 @@ body {
   flex-direction: column;
 
   .chat-box-container {
-    padding: 0.5rem;
+    padding: 0px;
     overflow-y: auto;
     font-size: 0.875rem;
     height: calc(100vh - 80px);
@@ -170,20 +171,32 @@ body {
     white-space: nowrap;
     box-sizing: border-box;
     overflow: hidden;
+    background-color: #FFFFFF;
+    
+    form{
+      
+    }
 
-    input {
+    textarea {
       border: none;
       border-radius: 3px;
-      padding: 0.2rem 0.6rem;
+      padding: 5px 5px;
       color: #1e1e1e;
       width: calc(100% - 80px);
+      vertical-align: bottom;
+      resize: none;
+      &:focus-visible{
+        outline: none;
+      }
     }
+    
 
     button {
       padding: 0.2rem 0.5rem;
       min-width: 30px;
       background: #b9b9b9;
       border-radius: 3px;
+      vertical-align: bottom;
 
       &:hover {
         background: #1e40af;
@@ -220,8 +233,6 @@ body {
     overflow: hidden;
     width: calc(70% - 5px);
     box-sizing: border-box;
-    border-left: 1px solid #DDDDDD;
-    border-right: 1px solid #DDDDDD;
     background-color: #fbfbfb;
   }
 
@@ -265,6 +276,53 @@ body {
       border-right: 1px solid #777;
     }
   }
+  
+  .resize-bar-horizontal {
+    height: 10px;
+    cursor: row-resize;
+    width: 100%;
+    position: relative;
+    
+    &::before,
+    &::after {
+      content: "";
+      width: 20px;
+      height: 0px;
+      background-color: #ccc;
+      position: absolute;
+      left: calc(50% - 10px);
+    }
+
+    &::before {
+      top: 3px;
+      border-top: 1px solid #777;
+    }
+
+    &::after {
+      bottom: 3px;
+      border-bottom: 1px solid #777;
+    }
+    
+    
+  }
+
+  .top-panel{
+      height: calc(100vh - 140px);
+      box-sizing: border-box;
+      overflow: hidden;;
+      border-bottom: 1px solid #DDDDDD;
+      border-left: 1px solid #DDDDDD;
+      border-right: 1px solid #DDDDDD;
+    }
+    .bottom-panel{
+      border-top: 1px solid #DDDDDD;
+      border-left: 1px solid #DDDDDD;
+      border-right: 1px solid #DDDDDD;
+    }
+    .top-panel, .bottom-panel {
+        overflow: hidden;
+    }
+
 }
 
 /* === File Preview & Received Images === */
@@ -285,17 +343,36 @@ body {
 }
 
 
-.resize-bar-horizontal {
-    height: 6px;
-    background: #ccc;
-    cursor: row-resize;
-    width: 100%;
-}
-.top-panel{
-  height: calc(100vh - 120px);
-  box-sizing: border-box;
-  overflow: hidden;;
-}
-.top-panel, .bottom-panel {
-    overflow: hidden;
+
+
+.chat-container{
+  margin: 5px 0;
+  padding: 10px 10px;
+  .chat-sender{
+    font-weight: bold;
+    padding: 0px 0px 5px 0px;
+  }
+  .chat-content{
+    background-color: #EEEEEE;
+    border-radius: 3px;
+    padding: 10px 10px;
+    position: relative;
+  }
+  .file-container{
+    background-color: #EEEEEE;
+    border-radius: 3px;
+    padding: 10px 10px;
+    position: relative;
+    img{
+      box-sizing: border-box;
+    }
+  }
+  
+  .file-name-container{
+    white-space: nowrap;
+    padding-top: 5px;
+    overflow-x: hidden;
+    text-overflow: ellipsis;
+  }
+  
 }
