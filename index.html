@@ -35,11 +35,12 @@
                 <div class="top-panel" id="top-panel">
                     <div class="main-screen-container relative">
                         <video id="main-screen" autoplay muted playsinline></video>
-                        <button id="fullscreenBtn" 
-                            class="absolute bottom-2 right-2 bg-black/50 text-white p-2 rounded">
-                            <i class="fa fa-expand"></i>
-                        </button>
+                        
                     </div>
+                    <button id="fullscreenBtn" 
+                        class="fullscreen-button">
+                        <i class="fa fa-expand"></i>
+                    </button>
                 </div>
                 
                 <div class="resize-bar resize-bar-horizontal"></div>
@@ -170,22 +171,22 @@
         
 
     function autoResizeTextarea(textarea, maxHeight = 200, callback = null) {
-    function resize() {
-        textarea.style.height = "auto"; // reset dulu agar bisa shrink
-        let newHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = newHeight + "px";
+        function resize() {
+            textarea.style.height = "auto"; // reset dulu agar bisa shrink
+            let newHeight = Math.min(textarea.scrollHeight, maxHeight);
+            textarea.style.height = newHeight + "px";
 
-        if (typeof callback === "function") {
-            callback(newHeight);
+            if (typeof callback === "function") {
+                callback(newHeight);
+            }
         }
+
+        // resize saat input berubah
+        textarea.addEventListener("input", resize);
+
+        // jalankan sekali saat awal
+        resize();
     }
-
-    // resize saat input berubah
-    textarea.addEventListener("input", resize);
-
-    // jalankan sekali saat awal
-    resize();
-}
 
 </script>
 

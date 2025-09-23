@@ -90,6 +90,22 @@ class SignallingServer {
         }
         return data;
     }
+    
+     loadEvent(roomId) {
+        const dir = path.join(__dirname, "..");
+        const filePath = path.join(__dirname, "..", `event_${roomId}.txt`);
+        if (!fs.existsSync(filePath)) return [];
+        const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+        const data = [];
+        for (let line of lines) {
+            line = line.trim();
+            if (line !== "") {
+                let row = JSON.parse(line);
+                data.push(row);
+            }
+        }
+        return data;
+    }
 
     onMessage(ws, msg) {
         const dir = __dirname + "/../";
@@ -132,6 +148,12 @@ class SignallingServer {
             ws.send(JSON.stringify({
                 type: "chatHistory",
                 chatHistory: this.loadHistory(roomId)
+            }));
+        }
+        else if (data.type === "requestChatEvent") {
+            ws.send(JSON.stringify({
+                type: "chatEvent",
+                chatEvent: this.loadEvent(roomId)
             }));
         }
         else if (data.type === "fileRequest") {
@@ -258,8 +280,13 @@ class SignallingServer {
             const str = JSON.stringify(data);
             fs.appendFileSync(__dirname + "/../history_" + roomId + ".txt", str + "\r\n");
         }
-    }
+        
+        if (data.type === "demoteStream" || data.type === "promoteStream" || data.type === "stopSharing" || data.type === "streamUpdate") {
+            const str = JSON.stringify(data);
+            fs.appendFileSync(__dirname + "/../event_" + roomId + ".txt", str + "\r\n");
+        }
 
+    }
 
     onClose(ws) {
         const peerId = this.clients.get(ws);

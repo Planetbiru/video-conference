@@ -228,7 +228,7 @@ body {
 .root-container .resize-bar-vertical {
   cursor: ew-resize;
   background-color: #fafafa;
-  width: 8px;
+  width: 5px;
   position: relative;
   height: 100vh;
   z-index: 100;
@@ -242,15 +242,15 @@ body {
   top: calc(50% - 10px);
 }
 .root-container .resize-bar-vertical::before {
-  left: 2px;
+  left: 1px;
   border-left: 1px solid #777;
 }
 .root-container .resize-bar-vertical::after {
-  right: 2px;
+  right: 1px;
   border-right: 1px solid #777;
 }
 .root-container .resize-bar-horizontal {
-  height: 10px;
+  height: 5px;
   cursor: row-resize;
   width: 100%;
   position: relative;
@@ -264,11 +264,11 @@ body {
   left: calc(50% - 10px);
 }
 .root-container .resize-bar-horizontal::before {
-  top: 3px;
+  top: 1px;
   border-top: 1px solid #777;
 }
 .root-container .resize-bar-horizontal::after {
-  bottom: 3px;
+  bottom: 1px;
   border-bottom: 1px solid #777;
 }
 .root-container .top-panel {
@@ -280,6 +280,7 @@ body {
   border-right: 1px solid #DDDDDD;
 }
 .root-container .bottom-panel {
+  height: 130px;
   border-top: 1px solid #DDDDDD;
   border-left: 1px solid #DDDDDD;
   border-right: 1px solid #DDDDDD;
@@ -332,4 +333,12 @@ body {
   padding-top: 5px;
   overflow-x: hidden;
   text-overflow: ellipsis;
+}
+
+.fullscreen-button {
+  position: absolute;
+  bottom: 144px;
+  right: 10px;
+  color: #000000;
+  opacity: 0.4;
 }/*# sourceMappingURL=style.css.map */

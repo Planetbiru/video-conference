@@ -71,7 +71,7 @@ class SignallingServer implements MessageComponentInterface
 
     }
 
-    public function loadHistory($roomId)
+    public function loadChatHistory($roomId)
     {
         $dir = dirname(__DIR__) . "/";
         $path = dirname(__DIR__) . "/history_" . $roomId . ".txt";
@@ -88,6 +88,22 @@ class SignallingServer implements MessageComponentInterface
                         $row = $saved;
                     }
                 }
+                $data[] = $row;
+            }
+        }
+        return $data;
+    }
+    
+    public function loadChatEvent($roomId)
+    {
+        $dir = dirname(__DIR__) . "/";
+        $path = dirname(__DIR__) . "/event_" . $roomId . ".txt";
+        if (!file_exists($path)) return array();
+        $lines = file($path);
+        $data = array();
+        foreach ($lines as $line) {
+            if (trim($line) !== '') {
+                $row = json_decode($line, true);
                 $data[] = $row;
             }
         }
@@ -129,7 +145,12 @@ class SignallingServer implements MessageComponentInterface
         } elseif (isset($data['type']) && $data['type'] === 'requestChatHistory') {
             $from->send(json_encode(array(
                 'type'        => 'chatHistory',
-                'chatHistory' => $this->loadHistory($roomId)
+                'chatHistory' => $this->loadChatHistory($roomId)
+            )));
+        } elseif (isset($data['type']) && $data['type'] === 'requestChatEvent') {
+            $from->send(json_encode(array(
+                'type'        => 'chatEvent',
+                'chatEvent' => $this->loadChatEvent($roomId)
             )));
         } elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
             $fileId = $data['fileId'];
@@ -280,6 +301,12 @@ class SignallingServer implements MessageComponentInterface
         if (isset($data['type']) && ($data['type'] === 'chat' || $data['type'] === 'fileMeta')) {
             $str = json_encode($data);
             file_put_contents(dirname(__DIR__) . "/history_" . $roomId . ".txt", $str . "\r\n", FILE_APPEND);
+        }
+        
+        // Save event to file
+        if (isset($data['type']) && ($data['type'] === 'demoteStream' || $data['type'] === 'promoteStream' || $data['type'] === 'stopSharing' || $data['type'] === "streamUpdate")) {
+            $str = json_encode($data);
+            file_put_contents(dirname(__DIR__) . "/event_" . $roomId . ".txt", $str . "\r\n", FILE_APPEND);
         }
     }
 

@@ -60,6 +60,7 @@ class ResizableThreePanels {
     }
 
     startResizing(e, resizerType) {
+        console.log('startResizing');
         this.isResizing = true;
         this.hasResized = false;
         this.currentResizer = resizerType;

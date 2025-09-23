@@ -251,7 +251,7 @@ body {
   .resize-bar-vertical {
     cursor: ew-resize;
     background-color: #fafafa;
-    width: 8px;
+    width: 5px;
     position: relative;
     height: 100vh;
     z-index: 100;
@@ -267,18 +267,18 @@ body {
     }
 
     &::before {
-      left: 2px;
+      left: 1px;
       border-left: 1px solid #777;
     }
 
     &::after {
-      right: 2px;
+      right: 1px;
       border-right: 1px solid #777;
     }
   }
   
   .resize-bar-horizontal {
-    height: 10px;
+    height: 5px;
     cursor: row-resize;
     width: 100%;
     position: relative;
@@ -294,12 +294,12 @@ body {
     }
 
     &::before {
-      top: 3px;
+      top: 1px;
       border-top: 1px solid #777;
     }
 
     &::after {
-      bottom: 3px;
+      bottom: 1px;
       border-bottom: 1px solid #777;
     }
     
@@ -315,6 +315,7 @@ body {
       border-right: 1px solid #DDDDDD;
     }
     .bottom-panel{
+      height: 130px;
       border-top: 1px solid #DDDDDD;
       border-left: 1px solid #DDDDDD;
       border-right: 1px solid #DDDDDD;
@@ -375,4 +376,11 @@ body {
     text-overflow: ellipsis;
   }
   
+}
+.fullscreen-button{
+  position: absolute;
+  bottom: 144px;
+  right: 10px;
+  color: #000000;
+  opacity: 0.4;
 }

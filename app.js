@@ -50,6 +50,12 @@ const MESSAGE_TYPE_STOP_SHARING = "stopSharing";
 const MESSAGE_TYPE_CHAT = "chat";
 const MESSAGE_TYPE_ANSWER = "answer";
 const MESSAGE_TYPE_REQUEST_CHAT_HISTORY = "requestChatHistory";
+const MESSAGE_TYPE_CHAT_HISTORY = "chatHistory";
+const MESSAGE_TYPE_REQUEST_CHAT_EVENT = "requestChatEvent";
+const MESSAGE_TYPE_CHAT_EVENT = "chatEvent";
+
+
+
 const MESSAGE_TYPE_FILE_META = "fileMeta";
 const MESSAGE_TYPE_FILE_CHUNK = "fileChunk";
 const MESSAGE_TYPE_FILE_COMPLETE = "fileComplete";
@@ -438,24 +444,9 @@ function joinRoom(roomId) {
   connectSocket(roomId);
 }
 
-function connectSocket(roomId) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.close();
-  }
-  socketUrl = `${wsProtocol}://${wsHost}:${wsPort}?roomId=${encodeURIComponent(
-    roomId
-  )}`;
-
-  socket = new WebSocket(socketUrl);
-
-  socket.onopen = () => {
-    setupLocalVideo();
-    requestChatHistory();
-  };
-
-  socket.onmessage = async ({ data }) => {
-    const msg = JSON.parse(data);
-    let peerId = msg.from;
+async function handleOnMessage(msg)
+{
+  let peerId = msg.from;
 
     // chat
     if (msg.type === MESSAGE_TYPE_CHAT) {
@@ -535,9 +526,18 @@ function connectSocket(roomId) {
     }
 
     // chatHistory
-    if (msg.type === "chatHistory") {
+    if (msg.type === MESSAGE_TYPE_CHAT_HISTORY) {
       putChatHistory(msg.chatHistory);
       loadMissedFiles();
+      return;
+    }
+    
+    // chatEvent
+    if (msg.type === MESSAGE_TYPE_CHAT_EVENT) {
+      if(msg.chatEvent)
+      {
+        msg.chatEvent.forEach(evt => handleOnMessage(evt));
+      }
       return;
     }
 
@@ -689,6 +689,27 @@ function connectSocket(roomId) {
       }
       return;
     }
+}
+
+function connectSocket(roomId) {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.close();
+  }
+  socketUrl = `${wsProtocol}://${wsHost}:${wsPort}?roomId=${encodeURIComponent(
+    roomId
+  )}`;
+
+  socket = new WebSocket(socketUrl);
+
+  socket.onopen = () => {
+    setupLocalVideo();
+    requestChatHistory();
+    requestChatEvent();
+  };
+
+  socket.onmessage = async ({ data }) => {
+    const msg = JSON.parse(data);
+    handleOnMessage(msg);
   };
 
   socket.onclose = () => {
@@ -874,6 +895,11 @@ function requestChatHistory() {
   );
 }
 
+function requestChatEvent() {
+  socket.send(
+    JSON.stringify({ type: MESSAGE_TYPE_REQUEST_CHAT_EVENT, from: clientId })
+  );
+}
 // --- helpers ---
 
 function isSameStream(a, b) {
@@ -1279,7 +1305,7 @@ function promoteMyStream(buttonElement) {
   }
   buttonElement.classList.add(CLASS_SHARING);
   socket.send(
-    JSON.stringify({ type: MESSAGE_TYPE_PROMOTE_STREAM, from: clientId })
+    JSON.stringify({ type: MESSAGE_TYPE_PROMOTE_STREAM, from: clientId, eventId: generateNewId() })
   );
   const selected = document.querySelector(
     `input[name="mainStreamSelector"][value="local"]`
@@ -1297,7 +1323,7 @@ function promoteMyStream(buttonElement) {
 
 function demoteMyStream() {
   socket.send(
-    JSON.stringify({ type: MESSAGE_TYPE_DEMOTE_STREAM, from: clientId })
+    JSON.stringify({ type: MESSAGE_TYPE_DEMOTE_STREAM, from: clientId, eventId: generateNewId() })
   );
 }
 
@@ -1361,13 +1387,13 @@ async function stopSharing() {
 
     // Inform peers that stream is stopped
     socket.send(
-      JSON.stringify({ type: MESSAGE_TYPE_STREAM_UPDATE, from: clientId })
+      JSON.stringify({ type: MESSAGE_TYPE_STREAM_UPDATE, from: clientId, eventId: generateNewId() })
     );
     socket.send(
-      JSON.stringify({ type: MESSAGE_TYPE_DEMOTE_STREAM, from: clientId })
+      JSON.stringify({ type: MESSAGE_TYPE_DEMOTE_STREAM, from: clientId, eventId: generateNewId() })
     );
     socket.send(
-      JSON.stringify({ type: MESSAGE_TYPE_STOP_SHARING, from: clientId })
+      JSON.stringify({ type: MESSAGE_TYPE_STOP_SHARING, from: clientId, eventId: generateNewId() })
     );
 
     document.querySelector("#promoteBtn").classList.remove(CLASS_SHARING);
@@ -1585,4 +1611,6 @@ function generateNewId() {
 }
 
 
-connectSocket(currentRoomId);
+document.addEventListener('DOMContentLoaded', ()=>{
+  connectSocket(currentRoomId);
+});
