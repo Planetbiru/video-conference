@@ -454,13 +454,12 @@ function connectSocket(roomId) {
   };
 
   socket.onmessage = async ({ data }) => {
-    console.log(data);
     const msg = JSON.parse(data);
     let peerId = msg.from;
 
     // chat
     if (msg.type === MESSAGE_TYPE_CHAT) {
-      putChat(msg);
+      renderNewChat(msg);
       return;
     }
 
@@ -709,7 +708,7 @@ function putHistoryChat(msg) {
  
   if(msg.type === MESSAGE_TYPE_CHAT)
   {
-    putChat(msg);
+    renderNewChat(msg);
   }
   else if(msg.type === MESSAGE_TYPE_FILE_META)
   {
@@ -718,34 +717,72 @@ function putHistoryChat(msg) {
 }
 
 function putFilePlaceholder(msg) {
-  if(document.querySelector(`.url-src[data-file-id="${msg.fileId}"]`))
-  {
-    // No duplicated placeholder
-    return;
-  }
-
   const chatBox = document.getElementById("chat-box");
-  const div = document.createElement("div");
+    // Container utama chat
+  const chatContainer = document.createElement("div");
+  chatContainer.classList.add("chat-container");
+  
+    // Header pengirim
+  const header = document.createElement("div");
+  header.classList.add('chat-sender');
+  header.textContent = `${msg.from}`;
+  chatContainer.appendChild(header);
+
+  // Buat container untuk file
+  const fileContainer = document.createElement("div");
+  fileContainer.classList.add("file-container");
+  fileContainer.id = `file-${msg.fileId}`; // ID berdasarkan fileId
+
   let realtime = msg.realtime ? 'true' : 'false';
   let complete = msg.complete ? 'true' : 'false';
 
-  
 
-  if (msg?.mimeType?.startsWith("image/")) {
-    div.innerHTML = `<strong>${msg.from}:</strong><br>
-        <div class="image-received">
-        <img data-file-id="${msg.fileId}" data-realtime="${realtime}" data-complete="${complete}" data-loaded="false" data-process="false" class="url-src" src="image.svg" alt="${msg.name}">
-        </div>
-        <a data-file-id="${msg.fileId}" data-realtime="${realtime}" data-complete="${complete}" data-loaded="false" data-process="false" class="url-href" href="image.svg" download="${msg.name}">📎 ${msg.name}</a>`;
-  } else {
-    div.innerHTML = `<strong>${msg.from}:</strong> 
-        <a data-file-id="${msg.fileId}" data-realtime="${realtime}" data-complete="${complete}" data-loaded="false" data-process="false" class="url-href" href="image.svg" download="${msg.name}">
-            📎 ${msg.name}
-        </a>`;
+
+  // Konten file
+  if (msg.mimeType.startsWith("image/")) {
+    const imgWrapper = document.createElement("div");
+    imgWrapper.classList.add("image-received");
+
+    const img = document.createElement("img");
+    img.classList.add("url-src");
+    img.src = "image.svg";
+    img.alt = msg.name;
+    img.dataset.fileId = msg.fileId;
+    img.dataset.realtime = realtime;
+    img.dataset.complete = complete;
+    img.dataset.loaded = "false";
+    img.dataset.process = "false";
+
+    imgWrapper.appendChild(img);
+    fileContainer.appendChild(imgWrapper);
   }
-  chatBox.appendChild(div);
+
+  // Link download file (untuk semua tipe)
+  const link = document.createElement("a");
+  link.classList.add("url-href");
+  link.href = "#";
+  link.download = msg.name;
+  link.dataset.fileId = msg.fileId;
+  link.dataset.realtime = realtime;
+  link.dataset.complete = complete;
+  link.dataset.loaded = "false";
+  link.dataset.process = "false";
+  link.textContent = `📎 ${msg.name}`;
+  let fileNameContainer = document.createElement("div");
+  fileNameContainer.classList.add("file-name-container");
+  fileNameContainer.appendChild(link);
+
+  fileContainer.appendChild(fileNameContainer);
   
+  chatContainer.appendChild(fileContainer);
+
+  chatBox.appendChild(chatContainer);
+
+  // Panggil fungsi proses file
+  requestCompletedFile();
+  requestIncompletedFile();
 }
+
 let isMissedFilesLoaded = false;
 
 function loadMissedFiles()
@@ -793,12 +830,33 @@ function requestCompletedFile()
   }
 }
 
-function putChat(msg) {
+function renderNewChat(msg) {
   const chatBox = document.getElementById("chat-box");
-  chatBox.innerHTML += `\r\n<div><strong>${msg.from}:</strong> ${msg.text}</div>`;
-  setTimeout(function () {
-    document.querySelector(".chat-box-container").scrollTop =
-      document.querySelector(".chat-box-container").scrollHeight;
+
+  // Container utama chat
+  const chatContainer = document.createElement("div");
+  chatContainer.classList.add("chat-container");
+
+  // Header pengirim
+  const header = document.createElement("div");
+  header.classList.add("chat-sender");
+  header.textContent = msg.from;
+  chatContainer.appendChild(header);
+
+  // Konten chat
+  const content = document.createElement("div");
+  content.classList.add("chat-content");
+  content.textContent = msg.text;
+  chatContainer.appendChild(content);
+
+  chatBox.appendChild(chatContainer);
+
+  // Scroll ke bawah
+  setTimeout(() => {
+    const chatScroll = document.querySelector(".chat-box-container");
+    if (chatScroll) {
+      chatScroll.scrollTop = chatScroll.scrollHeight;
+    }
   }, 100);
 }
 
@@ -1201,7 +1259,7 @@ function sendChat() {
     messageId: generateMessageId(),
   };
 
-  putChat(msg);
+  renderNewChat(msg);
   socket.send(JSON.stringify(msg));
 }
 

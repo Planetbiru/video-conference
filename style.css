@@ -29,6 +29,7 @@ body {
 /* === Thumbnails === */
 .video-thumbnails {
   overflow-x: auto;
+  padding: 5px;
 }
 .video-thumbnails::-webkit-scrollbar {
   display: none;
@@ -145,7 +146,7 @@ body {
   flex-direction: column;
 }
 .chat-panel .chat-box-container {
-  padding: 0.5rem;
+  padding: 0px;
   overflow-y: auto;
   font-size: 0.875rem;
   height: calc(100vh - 80px);
@@ -160,19 +161,26 @@ body {
   white-space: nowrap;
   box-sizing: border-box;
   overflow: hidden;
+  background-color: #FFFFFF;
 }
-.chat-panel .chat-input-area input {
+.chat-panel .chat-input-area textarea {
   border: none;
   border-radius: 3px;
-  padding: 0.2rem 0.6rem;
+  padding: 5px 5px;
   color: #1e1e1e;
   width: calc(100% - 80px);
+  vertical-align: bottom;
+  resize: none;
+}
+.chat-panel .chat-input-area textarea:focus-visible {
+  outline: none;
 }
 .chat-panel .chat-input-area button {
   padding: 0.2rem 0.5rem;
   min-width: 30px;
   background: #b9b9b9;
   border-radius: 3px;
+  vertical-align: bottom;
 }
 .chat-panel .chat-input-area button:hover {
   background: #1e40af;
@@ -205,8 +213,6 @@ body {
   overflow: hidden;
   width: calc(70% - 5px);
   box-sizing: border-box;
-  border-left: 1px solid #DDDDDD;
-  border-right: 1px solid #DDDDDD;
   background-color: #fbfbfb;
 }
 .root-container .right-panel {
@@ -243,6 +249,44 @@ body {
   right: 2px;
   border-right: 1px solid #777;
 }
+.root-container .resize-bar-horizontal {
+  height: 10px;
+  cursor: row-resize;
+  width: 100%;
+  position: relative;
+}
+.root-container .resize-bar-horizontal::before, .root-container .resize-bar-horizontal::after {
+  content: "";
+  width: 20px;
+  height: 0px;
+  background-color: #ccc;
+  position: absolute;
+  left: calc(50% - 10px);
+}
+.root-container .resize-bar-horizontal::before {
+  top: 3px;
+  border-top: 1px solid #777;
+}
+.root-container .resize-bar-horizontal::after {
+  bottom: 3px;
+  border-bottom: 1px solid #777;
+}
+.root-container .top-panel {
+  height: calc(100vh - 140px);
+  box-sizing: border-box;
+  overflow: hidden;
+  border-bottom: 1px solid #DDDDDD;
+  border-left: 1px solid #DDDDDD;
+  border-right: 1px solid #DDDDDD;
+}
+.root-container .bottom-panel {
+  border-top: 1px solid #DDDDDD;
+  border-left: 1px solid #DDDDDD;
+  border-right: 1px solid #DDDDDD;
+}
+.root-container .top-panel, .root-container .bottom-panel {
+  overflow: hidden;
+}
 
 /* === File Preview & Received Images === */
 .send-file-preview, .image-received {
@@ -260,19 +304,32 @@ body {
   scroll-behavior: smooth;
 }
 
-.resize-bar-horizontal {
-  height: 6px;
-  background: #ccc;
-  cursor: row-resize;
-  width: 100%;
+.chat-container {
+  margin: 5px 0;
+  padding: 10px 10px;
 }
-
-.top-panel {
-  height: calc(100vh - 120px);
+.chat-container .chat-sender {
+  font-weight: bold;
+  padding: 0px 0px 5px 0px;
+}
+.chat-container .chat-content {
+  background-color: #EEEEEE;
+  border-radius: 3px;
+  padding: 10px 10px;
+  position: relative;
+}
+.chat-container .file-container {
+  background-color: #EEEEEE;
+  border-radius: 3px;
+  padding: 10px 10px;
+  position: relative;
+}
+.chat-container .file-container img {
   box-sizing: border-box;
-  overflow: hidden;
 }
-
-.top-panel, .bottom-panel {
-  overflow: hidden;
+.chat-container .file-name-container {
+  white-space: nowrap;
+  padding-top: 5px;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
 }/*# sourceMappingURL=style.css.map */
