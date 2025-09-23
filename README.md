@@ -1,15 +1,15 @@
 
 # Video Conference
 
-A **web-based video conferencing application** with real-time chat, file sharing, screen sharing, and main screen promotion features. Built with **WebRTC** and **WebSockets** for peer-to-peer communication, and **TailwindCSS** for responsive UI.
+A **web-based video conferencing application** featuring real-time, room-based communication. It includes video/audio streaming, screen sharing, persistent chat with history, and file sharing. Built with **WebRTC** and **WebSockets** for peer-to-peer communication, and **TailwindCSS** for a responsive UI.
 
 ---
 
 ## Features
 
-- **Video and Audio Conferencing**  
-  - Connect with multiple peers in a room using WebRTC.  
-  - Display local and remote video streams with a main screen view.  
+- **Room-Based Video & Audio Conferencing**
+  - Connect with multiple peers in isolated rooms using WebRTC.
+  - Display local and remote video streams with a main screen view.
 
 - **Main Screen Promotion**  
   - Promote your stream or a selected participant's stream to the main screen.  
@@ -17,49 +17,54 @@ A **web-based video conferencing application** with real-time chat, file sharing
 
 - **Screen Sharing**  
   - Share your screen with all participants.  
-  - Automatically revert to camera when screen sharing ends.  
+  - Automatically revert to the camera when screen sharing ends.
 
-- **Chat System**  
-  - Real-time text chat between participants.  
-  - Maintains chat history when joining a room.  
+- **Persistent Chat System**
+  - Real-time text chat confined to participants within the same room.
+  - **Chat History**: New participants can view the entire chat history upon joining.
 
-- **File Sharing**  
-  - Send files to all participants in chunks (supports large files).  
-  - Image files are previewed directly in the chat.  
+- **Persistent File Sharing**
+  - Send files to all participants in chunks, supporting large file transfers.
+  - Image files are previewed directly in the chat.
+  - **Saved Files**: Files are stored on the server, allowing new participants or users who reload the page to access previously shared files.
+
+- **Event History & State Synchronization**
+  - New participants automatically see the current state of shared screens, cameras, and audio streams.
+  - Ensures a consistent view for everyone in the room, regardless of when they join.
 
 - **Responsive UI**  
   - Left panel for video, right panel for chat.  
-  - Resizable panels for flexible layout.  
+  - **Resizable Panels**: Users can resize the video and chat panels to optimize their viewing area.
   - Floating chat panel similar to modern conferencing apps.  
 
 ---
 
 ## Demo
 
-Currently, this project requires running a WebSocket signaling server on port `3000`. Open multiple browser tabs to simulate multiple participants.
+This project requires running a WebSocket signaling server on port `3000`. To test, open multiple browser tabs and join the same room by adding `?roomId=your-room-name` to the URL.
 
 ---
 
 ## Installation
 
 1. **Clone the repository**
-bash
-git clone https://github.com/your-username/video-conference.git
-cd video-conference
-`
+   ```bash
+   git clone https://github.com/your-username/video-conference.git
+   cd video-conference
+   ```
 
 2. **Run signaling server**
 
    * The signaling server can be implemented in **PHP** or **Node.js**.
    * Start the server using one of the following commands:
 
-# PHP
+   **PHP (requires Ratchet):**
 
-```bash
-php server.php
-```
+   ```bash
+   php server.php
+   ```
 
-# Node.js
+   **Node.js (requires `ws` package):**
 
 ```bash
 node server.js
@@ -70,7 +75,7 @@ node server.js
 3. **Open the app**
 
    * Open `index.html` in a modern browser (Chrome, Firefox, or Edge).
-   * Join a room by passing `?roomId=yourRoom` in the URL.
+   * Join a room by passing `?roomId=your-room-name` in the URL.
 
 ---
 
@@ -81,6 +86,7 @@ node server.js
 * **Promote Stream**: Click the star button to make your stream the main screen.
 * **Chat**: Type messages in the chat input and press send.
 * **File Sharing**: Click the 📎 button to select a file, preview, and send.
+* **Resize Panels**: Drag the divider between the video and chat panels to adjust their widths.
 
 ---
 
@@ -124,5 +130,3 @@ MIT License © Kamshory, MT
 
 * Inspired by modern video conferencing applications and WebRTC tutorials.
 * Uses open-source libraries for UI and icons.
-
-
