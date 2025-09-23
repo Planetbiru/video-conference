@@ -28,10 +28,10 @@
             </ul>
             <h3 class="p-2">Groups</h3>
             <ul id="group-list" class="p-2">
-                <li><a href="#">Group 1</a></li>
-                <li><a href="#">Group 2</a></li>
-                <li><a href="#">Group 3</a></li>
-                <li><a href="#">Group 4</a></li>
+                <li><a href="?roomId=group1">Group 1</a></li>
+                <li><a href="?roomId=group2">Group 2</a></li>
+                <li><a href="?roomId=group3">Group 3</a></li>
+                <li><a href="?roomId=group4">Group 4</a></li>
             </ul>
         </div>
 
@@ -91,8 +91,8 @@
                 <form action="" onsubmit="sendChat(); return false;" class="d-flex">
                     <textarea id="chatInput" class="form-control mr-2" placeholder="Type a message..."
                         autocomplete="off" spellcheck="false"></textarea>
-                    <button type="submit" class="btn btn-primary mr-2">➤</button>
-                    <button type="button" onclick="selectFile()" class="btn btn-secondary">📎</button>
+                    <button type="submit" class="btn btn-primary mr-2"><i class="fa fa-paper-plane"></i></button>
+                    <button type="button" onclick="selectFile()" class="btn btn-secondary"><i class="fa fa-paperclip"></i></button>
                 </form>
             </div>
         </div>

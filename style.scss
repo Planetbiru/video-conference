@@ -202,9 +202,9 @@ a {
     textarea {
       border: none;
       border-radius: 3px;
-      padding: 5px 5px;
+      padding: 2px 2px;
       color: #1e1e1e;
-      width: calc(100% - 80px);
+      width: calc(100% - 74px);
       vertical-align: bottom;
       resize: none;
       font-family: inherit;
@@ -217,14 +217,18 @@ a {
 
 
     button {
-      padding: 0.2rem 0.5rem;
-      min-width: 30px;
-      background: #b9b9b9;
+      padding: 0.2rem 0;
+      min-width: 25px;
+      background-color: #FFFFFF;
       border-radius: 3px;
       vertical-align: bottom;
+      border: none;
+      cursor: pointer;
+      box-sizing: border-box;
 
       &:hover {
-        background: #1e40af;
+        background: #525252;
+        color: #FFFFFF;
       }
     }
   }
@@ -407,6 +411,9 @@ a {
   .chat-sender {
     font-weight: bold;
     padding: 0px 0px 5px 0px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .chat-content {

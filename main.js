@@ -97,6 +97,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Send chat message on Enter without modifiers
                 e.preventDefault();
                 sendChat(); // custom function to send chat message
+                e.target.style.height = ""; 
+                let newHeight = e.target.scrollHeight;
+
+                let trim = newHeight + 58;
+                let elem = document.querySelector('.chat-panel .chat-box-container');
+                elem.style.height = `calc(100vh - ${trim}px)`;
+
             }
         }
     });
