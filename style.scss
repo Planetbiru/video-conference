@@ -8,18 +8,35 @@ body {
   margin: 0;
 }
 
+a {
+  text-decoration: none;
+  color: #333333;
+}
+
 /* === Main Container === */
 .main-container {
   display: flex;
   flex-direction: column;
-  align-items: stretch;       // jangan paksa center
-  justify-content: flex-start; // mulai dari atas
+  align-items: stretch;
+  /* biarkan tetap stretch */
+  justify-content: flex-start;
+  /* mulai dari atas */
+}
+
+.main-screen-container {
+  overflow: auto;
 }
 
 #main-screen {
-  width: 100%;
+  margin: auto;
+  min-width: 200px;
+  max-width: 100%;
+  /* biar nggak overflow */
   object-fit: contain;
+  display: block;
+  /* penting kalau img/video */
 }
+
 
 .main-content {
   height: 100vh;
@@ -63,9 +80,12 @@ body {
 
 
 @keyframes blink {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.4;
   }
@@ -80,7 +100,7 @@ body {
   justify-content: flex-start;
   padding: 4px 8px;
   box-sizing: border-box;
-  border-bottom: 1px solid #DDDDDD;
+  border-bottom: 1px solid #dddddd;
 
   button {
     height: auto; // reset agar tidak ikut 100vh
@@ -93,13 +113,16 @@ body {
     font-size: 16px;
     opacity: 0.9;
     color: #3a3a3a;
-    .fa::before{
+    border: none;
+
+    .fa::before {
       opacity: 0.5;
     }
 
     &:hover {
       background-color: transparent;
-      .fa::before{
+
+      .fa::before {
         opacity: 0.6;
       }
     }
@@ -107,19 +130,21 @@ body {
     &:disabled {
       cursor: not-allowed;
     }
-    
-    &.status-sharing{
+
+    &.status-sharing {
       color: #185383;
-      .fa::before{
+
+      .fa::before {
         opacity: 1;
         animation: blink 1s infinite;
       }
-      
+
     }
 
-    &.muted{
+    &.muted {
       position: relative;
-      .fa::after{
+
+      .fa::after {
         content: "";
         display: block;
         width: 2px;
@@ -172,10 +197,6 @@ body {
     box-sizing: border-box;
     overflow: hidden;
     background-color: #FFFFFF;
-    
-    form{
-      
-    }
 
     textarea {
       border: none;
@@ -185,11 +206,14 @@ body {
       width: calc(100% - 80px);
       vertical-align: bottom;
       resize: none;
-      &:focus-visible{
+      font-family: inherit;
+      font-size: 0.9rem;
+
+      &:focus-visible {
         outline: none;
       }
     }
-    
+
 
     button {
       padding: 0.2rem 0.5rem;
@@ -210,24 +234,25 @@ body {
   display: flex;
   width: 100%;
   overflow: hidden;
-  
 
-  .left-panel{
+
+  .left-panel {
     display: flex;
     flex-direction: column;
-    align-items: stretch;    // biar child lebar normal
+    align-items: stretch; // biar child lebar normal
     justify-content: flex-start; // mulai dari atas
     position: relative;
     overflow: hidden;
     width: calc(15% - 10px);
     box-sizing: border-box;
-    border-right: 1px solid #DDDDDD;
+    border-right: 1px solid #dddddd;
     background-color: #fbfbfb;
   }
+
   .main-panel {
     display: flex;
     flex-direction: column;
-    align-items: stretch;    // biar child lebar normal
+    align-items: stretch; // biar child lebar normal
     justify-content: flex-start; // mulai dari atas
     position: relative;
     overflow: hidden;
@@ -243,13 +268,13 @@ body {
     overflow: hidden;
     width: calc(15% - 5px);
     box-sizing: border-box;
-    border-left: 1px solid #DDDDDD;
+    border-left: 1px solid #dddddd;
     background-color: #fbfbfb;
   }
 
 
   .resize-bar-vertical {
-    cursor: ew-resize;
+    cursor: col-resize;
     background-color: #fafafa;
     width: 5px;
     position: relative;
@@ -268,21 +293,21 @@ body {
 
     &::before {
       left: 1px;
-      border-left: 1px solid #777;
+      border-left: 1px solid #cccccc;
     }
 
     &::after {
       right: 1px;
-      border-right: 1px solid #777;
+      border-right: 1px solid #cccccc;
     }
   }
-  
+
   .resize-bar-horizontal {
     height: 5px;
     cursor: row-resize;
     width: 100%;
     position: relative;
-    
+
     &::before,
     &::after {
       content: "";
@@ -295,91 +320,97 @@ body {
 
     &::before {
       top: 1px;
-      border-top: 1px solid #777;
+      border-top: 1px solid #cccccc;
     }
 
     &::after {
       bottom: 1px;
-      border-bottom: 1px solid #777;
+      border-bottom: 1px solid #cccccc;
     }
-    
-    
   }
 
-  .top-panel{
-      height: calc(100vh - 140px);
-      box-sizing: border-box;
-      overflow: hidden;;
-      border-bottom: 1px solid #DDDDDD;
-      border-left: 1px solid #DDDDDD;
-      border-right: 1px solid #DDDDDD;
-    }
-    .bottom-panel{
-      height: 130px;
-      border-top: 1px solid #DDDDDD;
-      border-left: 1px solid #DDDDDD;
-      border-right: 1px solid #DDDDDD;
-    }
-    .top-panel, .bottom-panel {
-        overflow: hidden;
-    }
+  .top-panel {
+    height: calc(100vh - 140px);
+    box-sizing: border-box;
+    overflow: hidden;
+    ;
+    border-bottom: 1px solid #dddddd;
+    border-left: 1px solid #dddddd;
+    border-right: 1px solid #dddddd;
+    position: relative;
+  }
+
+  .bottom-panel {
+    height: 130px;
+    border-top: 1px solid #dddddd;
+    border-left: 1px solid #dddddd;
+    border-right: 1px solid #dddddd;
+  }
+
+  .top-panel,
+  .bottom-panel {
+    overflow: hidden;
+  }
 
 }
 
 /* === File Preview & Received Images === */
-.send-file-preview, .image-received
-{
-    text-align: center;
-    img {
-        max-width: 100%;
-        box-sizing: border-box;
-        display: inline-block;
-    }
+.send-file-preview,
+.image-received {
+  text-align: center;
+
+  img {
+    max-width: 100%;
+    box-sizing: border-box;
+    display: inline-block;
+  }
 }
 
-#video-container{
+#video-container {
   white-space: nowrap;
   overflow-x: auto;
   scroll-behavior: smooth;
 }
 
-
-
-
-.chat-container{
+.chat-container {
   margin: 5px 0;
   padding: 10px 10px;
-  .chat-sender{
+
+  .chat-sender {
     font-weight: bold;
     padding: 0px 0px 5px 0px;
   }
-  .chat-content{
+
+  .chat-content {
     background-color: #EEEEEE;
     border-radius: 3px;
     padding: 10px 10px;
     position: relative;
   }
-  .file-container{
+
+  .file-container {
     background-color: #EEEEEE;
     border-radius: 3px;
     padding: 10px 10px;
     position: relative;
-    img{
+
+    img {
       box-sizing: border-box;
     }
   }
-  
-  .file-name-container{
+
+  .file-name-container {
     white-space: nowrap;
     padding-top: 5px;
     overflow-x: hidden;
     text-overflow: ellipsis;
   }
-  
+
 }
-.fullscreen-button{
+
+.fullscreen-button {
   position: absolute;
-  bottom: 144px;
+  bottom: 10px;
   right: 10px;
   color: #000000;
   opacity: 0.4;

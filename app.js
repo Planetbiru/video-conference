@@ -6,6 +6,17 @@ localVideo.muted = true;
 localVideo.playsInline = true;
 localVideo.id = "video-local";
 let reconnectInterval = 5000;
+let eventHistoryCalled = false;
+
+const peerConfiguration = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" }
+  ]
+};
 
 let localStream;
 let clientId;
@@ -704,7 +715,6 @@ function connectSocket(roomId) {
   socket.onopen = () => {
     setupLocalVideo();
     requestChatHistory();
-    requestChatEvent();
   };
 
   socket.onmessage = async ({ data }) => {
@@ -760,7 +770,7 @@ function putFilePlaceholder(msg) {
 
 
   // Konten file
-  if (msg.mimeType.startsWith("image/")) {
+  if (msg?.mimeType?.startsWith("image/")) {
     const imgWrapper = document.createElement("div");
     imgWrapper.classList.add("image-received");
 
@@ -851,6 +861,20 @@ function requestCompletedFile()
   }
 }
 
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function nl2br(text)
+{
+  return text.replace(/\n/g, "<br>");
+}
+
 function renderNewChat(msg) {
   const chatBox = document.getElementById("chat-box");
 
@@ -867,7 +891,7 @@ function renderNewChat(msg) {
   // Konten chat
   const content = document.createElement("div");
   content.classList.add("chat-content");
-  content.textContent = msg.text;
+  content.innerHTML = nl2br(escapeHtml(msg.text));
   chatContainer.appendChild(content);
 
   chatBox.appendChild(chatContainer);
@@ -970,15 +994,18 @@ function setupLocalVideo() {
 function createPeer(id) {
   if (peers[id]) return peers[id];
 
-  const pc = new RTCPeerConnection();
-  peers[id] = pc;
+  const rtcPeerConnection = new RTCPeerConnection(peerConfiguration);
+  peers[id] = rtcPeerConnection;
 
-  // attach local tracks if present
+  // Attach local tracks
   if (localStream) {
-    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+    localStream.getTracks().forEach((track) =>
+      rtcPeerConnection.addTrack(track, localStream)
+    );
   }
 
-  pc.onicecandidate = (e) => {
+  // 1. Candidate discovery
+  rtcPeerConnection.onicecandidate = (e) => {
     if (e.candidate) {
       socket.send(
         JSON.stringify({
@@ -988,18 +1015,37 @@ function createPeer(id) {
           from: clientId,
         })
       );
+    } else {
+      // ✅ semua candidate sudah dikirim
+      console.log("All ICE candidates sent for peer:", id);
+      if (typeof onIceReady === "function") {
+        onIceReady(id, rtcPeerConnection);
+      }
     }
   };
 
-  pc.ontrack = (e) => {
+  // 2. Connection state (more reliable for "ready")
+  rtcPeerConnection.oniceconnectionstatechange = () => {
+    const state = rtcPeerConnection.iceConnectionState;
+    console.log("ICE state:", state, "peer:", id);
+
+    if (state === "connected" || state === "completed") {
+      // ✅ ICE sudah siap digunakan (peer to peer connected)
+      if (typeof onIceReady === "function") {
+        onIceReady(id, rtcPeerConnection);
+      }
+    } else if (state === "failed") {
+      console.warn("ICE failed for peer:", id);
+    }
+  };
+
+  // 3. Media track handling
+  rtcPeerConnection.ontrack = (e) => {
     console.log("ontrack from", id, e.streams[0]);
-    // Ensure element exists
     ensureRemoteVideoElement(id);
     const vid = remoteVideos[id].video;
-    // assign srcObject (replace existing)
     vid.srcObject = e.streams[0];
 
-    // If radio for that peer is selected, attach to mainScreen when ready
     const selected = document.querySelector(
       'input[name="mainStreamSelector"]:checked'
     );
@@ -1008,8 +1054,21 @@ function createPeer(id) {
     }
   };
 
-  return pc;
+  return rtcPeerConnection;
 }
+
+// Global callback, bisa kamu override di aplikasi
+function onIceReady(peerId, connection) {
+  console.log("ICE is ready for peer:", peerId);
+  
+  // Call it once
+  if(!eventHistoryCalled)
+  {
+    requestChatEvent();
+    eventHistoryCalled = true;
+  }
+}
+
 
 async function createOffer(id) {
   const pc = createPeer(id);

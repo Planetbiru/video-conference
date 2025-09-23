@@ -11,7 +11,26 @@ class SignallingServer {
     }
 
     generatePeerId() {
-        return Math.random().toString(16).substr(2, 8);
+        return this.generateNewId();
+    }
+    
+    
+    generateNewId() {
+        // mirip uniqid() di PHP → pakai timestamp dalam milidetik (hex string)
+        let uuid = Date.now().toString(16);
+
+        // kalau panjang hex ganjil → tambahkan '0' di depan
+        if (uuid.length % 2 === 1) {
+            uuid = '0' + uuid;
+        }
+
+        // random hex 6 digit (0 sampai FFFFFF)
+        const random = Math.floor(Math.random() * 0xFFFFFF)
+            .toString(16)
+            .padStart(6, '0');
+
+        // gabungkan
+        return uuid + random;
     }
 
     getUserFromSession(sessionId) {

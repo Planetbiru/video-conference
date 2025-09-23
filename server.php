@@ -59,6 +59,16 @@ class SignallingServer implements MessageComponentInterface
         $this->clients = new SplObjectStorage;
         $this->users   = array();
     }
+    
+    public function generateNewId()
+    {
+        $uuid = uniqid();
+        if ((strlen($uuid) % 2) == 1) {
+            $uuid = '0' . $uuid;
+        }
+        $random = sprintf('%06x', mt_rand(0, 16777215));
+        return sprintf('%s%s', $uuid, $random);
+    }
 
     /**
      * Handle new WebSocket connection.
@@ -71,7 +81,7 @@ class SignallingServer implements MessageComponentInterface
         parse_str($uri->getQuery(), $query);
         $sessionId = isset($query['PHPSESSID']) ? $query['PHPSESSID'] : null;
         $roomId    = isset($query['roomId']) ? $query['roomId'] : 'default';
-        $peerId = substr(md5(uniqid()), 0, 8);
+        $peerId = $this->generateNewId();
         $user = $this->getUserFromSession($sessionId);
 
         // Save mapping: connection -> peerId, peerId -> user info
