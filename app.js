@@ -18,10 +18,15 @@ const wsHost = window.location.hostname;
 const wsPort = 3000;
 
 let currentRoomId = "default";
+const urlParams = new URLSearchParams(window.location.search);
+currentRoomId = urlParams.get("roomId") || "default";
+
+
 let socketUrl = `${wsProtocol}://${wsHost}:${wsPort}?roomId=${encodeURIComponent(
   currentRoomId
 )}`;
 let socket;
+
 
 
 const CHUNK_SIZE = 16 * 1024; // 16KB per chunk
@@ -449,6 +454,7 @@ function connectSocket(roomId) {
   };
 
   socket.onmessage = async ({ data }) => {
+    console.log(data);
     const msg = JSON.parse(data);
     let peerId = msg.from;
 
@@ -687,13 +693,13 @@ function connectSocket(roomId) {
   };
 
   socket.onclose = () => {
-    // <<< added
     console.warn("Socket closed. Reconnecting...");
-    setTimeout(connectSocket, reconnectInterval);
+    setTimeout(()=>{
+      connectSocket(currentRoomId);
+    }, reconnectInterval);
   };
 
   socket.onerror = (err) => {
-    // <<< added
     console.error("Socket error:", err);
     socket.close(); // trigger onclose → reconnect
   };
@@ -1501,6 +1507,5 @@ function clearFile() {
   document.querySelector(".send-file-preview").innerHTML = ""; // hapus preview
 }
 
-const urlParams = new URLSearchParams(window.location.search);
-let roomId = urlParams.get("roomId") || "default";
-connectSocket(roomId);
+
+connectSocket(currentRoomId);
