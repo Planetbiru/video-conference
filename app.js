@@ -1270,7 +1270,6 @@ function ensureRemoteVideoElement(peerId) {
   const videoWrapper = document.createElement("div");
   videoWrapper.className = "video-wrapper";
   videoWrapper.dataset.peerId = peerId;
-  videoWrapper.style.minWidth = "160px";
 
   const remoteVideo = document.createElement("video");
   remoteVideo.autoplay = true;
