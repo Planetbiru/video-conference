@@ -27,19 +27,32 @@
         </div>
 
         <!-- Resize bar between left and main -->
-        <div class="resize-bar resize-bar-left"></div>
+        <div class="resize-bar-vertical resize-bar-vertical resize-bar-left"></div>
 
         <!-- Main Panel: previously left-panel -->
         <div class="main-panel">
             <div class="main-content">
-                <video id="main-screen" autoplay muted playsinline></video>
-                <!-- Thumbnails row -->
-                <div id="video-container" class="video-thumbnails"></div>
+                <div class="top-panel" id="top-panel">
+                    <div class="main-screen-container relative">
+                        <video id="main-screen" autoplay muted playsinline></video>
+                        <button id="fullscreenBtn" 
+                            class="absolute bottom-2 right-2 bg-black/50 text-white p-2 rounded">
+                            <i class="fa fa-expand"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="resize-bar resize-bar-horizontal"></div>
+
+                <div class="bottom-panel" id="bottom-panel">
+                    <!-- Thumbnails row -->
+                    <div id="video-container" class="video-thumbnails"></div>
+                </div>
             </div>
         </div>
 
         <!-- Resize bar between main and right -->
-        <div class="resize-bar resize-bar-right"></div>
+        <div class="resize-bar-vertical resize-bar-right"></div>
 
         <!-- Right Panel: Chat -->
         <!-- Floating Chat -->
@@ -82,7 +95,7 @@
     </div>
 
     <div style="display: none;"><input type="file" id="fileInput" /></div>
-    <script src="app.js"></script>
+    
     <script>
         let resizablePanels;
         document.addEventListener('DOMContentLoaded', function () {
@@ -96,6 +109,8 @@
                 '.resize-bar-right',     // Resize bar between main and right
                 120                      // Minimum width for panels
             );
+
+            new ResizableVertical('#top-panel', '#bottom-panel', '.resize-bar-horizontal', 120);
 
             // Resize and redraw ERD
             let updatedWidth = document.querySelector('.root-container .left-panel').offsetWidth;
@@ -114,8 +129,34 @@
                 previewFile()
             });
 
+            const mainScreen = document.getElementById('main-screen');
+                const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+                fullscreenBtn.addEventListener('click', () => {
+                    if (!document.fullscreenElement) {
+                        // masuk fullscreen
+                        mainScreen.requestFullscreen().catch(err => {
+                            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                        });
+                    } else {
+                        // keluar fullscreen
+                        document.exitFullscreen();
+                    }
+                });
+
+            const videoContainer = document.getElementById('video-container');
+
+            videoContainer.addEventListener('wheel', function (event) {
+                // cegah scroll vertikal bawaan
+                event.preventDefault();
+
+                // scroll horizontal sesuai deltaY
+                videoContainer.scrollLeft += event.deltaY;
+            }, { passive: false });
+
         });
     </script>
+    <script src="app.js"></script>
 </body>
 
 </html>

@@ -18,11 +18,12 @@ body {
 
 #main-screen {
   width: 100%;
-  height: calc(100vh - 140px);
   object-fit: contain;
 }
 
-.main-content {}
+.main-content {
+  height: 100vh;
+}
 
 /* === Thumbnails === */
 .video-thumbnails {
@@ -235,7 +236,8 @@ body {
     background-color: #fbfbfb;
   }
 
-  .resize-bar {
+
+  .resize-bar-vertical {
     cursor: ew-resize;
     background-color: #fafafa;
     width: 8px;
@@ -276,3 +278,24 @@ body {
     }
 }
 
+#video-container{
+  white-space: nowrap;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+
+
+.resize-bar-horizontal {
+    height: 6px;
+    background: #ccc;
+    cursor: row-resize;
+    width: 100%;
+}
+.top-panel{
+  height: calc(100vh - 120px);
+  box-sizing: border-box;
+  overflow: hidden;;
+}
+.top-panel, .bottom-panel {
+    overflow: hidden;
+}

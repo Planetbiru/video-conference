@@ -18,9 +18,12 @@ body {
 
 #main-screen {
   width: 100%;
-  height: calc(100vh - 140px);
   -o-object-fit: contain;
      object-fit: contain;
+}
+
+.main-content {
+  height: 100vh;
 }
 
 /* === Thumbnails === */
@@ -216,7 +219,7 @@ body {
   border-left: 1px solid #DDDDDD;
   background-color: #fbfbfb;
 }
-.root-container .resize-bar {
+.root-container .resize-bar-vertical {
   cursor: ew-resize;
   background-color: #fafafa;
   width: 8px;
@@ -224,7 +227,7 @@ body {
   height: 100vh;
   z-index: 100;
 }
-.root-container .resize-bar::before, .root-container .resize-bar::after {
+.root-container .resize-bar-vertical::before, .root-container .resize-bar-vertical::after {
   content: "";
   width: 0;
   height: 20px;
@@ -232,11 +235,11 @@ body {
   position: absolute;
   top: calc(50% - 10px);
 }
-.root-container .resize-bar::before {
+.root-container .resize-bar-vertical::before {
   left: 2px;
   border-left: 1px solid #777;
 }
-.root-container .resize-bar::after {
+.root-container .resize-bar-vertical::after {
   right: 2px;
   border-right: 1px solid #777;
 }
@@ -249,4 +252,27 @@ body {
   max-width: 100%;
   box-sizing: border-box;
   display: inline-block;
+}
+
+#video-container {
+  white-space: nowrap;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+}
+
+.resize-bar-horizontal {
+  height: 6px;
+  background: #ccc;
+  cursor: row-resize;
+  width: 100%;
+}
+
+.top-panel {
+  height: calc(100vh - 120px);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.top-panel, .bottom-panel {
+  overflow: hidden;
 }/*# sourceMappingURL=style.css.map */

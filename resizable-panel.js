@@ -152,3 +152,61 @@ class ResizableThreePanels {
         this.loadPanelWidths();
     }
 }
+
+
+class ResizableVertical {
+    constructor(topSelector, bottomSelector, resizeBarSelector, minHeight = 100) {
+        this.topPanel = document.querySelector(topSelector);
+        this.bottomPanel = document.querySelector(bottomSelector);
+        this.resizeBar = document.querySelector(resizeBarSelector);
+        this.minHeight = minHeight;
+
+        this.isResizing = false;
+        this.lastDownY = 0;
+
+        this._boundMouseMove = this.handleMouseMove.bind(this);
+        this._boundStop = this.stopResizing.bind(this);
+
+        this.init();
+    }
+
+    init() {
+        this.resizeBar.addEventListener('mousedown', (e) => this.startResizing(e));
+    }
+
+    startResizing(e) {
+        this.isResizing = true;
+        this.lastDownY = e.clientY;
+
+        document.addEventListener('mousemove', this._boundMouseMove);
+        document.addEventListener('mouseup', this._boundStop);
+
+        this.topPanel.style.userSelect = 'none';
+        this.bottomPanel.style.userSelect = 'none';
+    }
+
+    handleMouseMove(e) {
+        if (!this.isResizing) return;
+
+        const offset = e.clientY - this.lastDownY;
+
+        let newTopHeight = this.topPanel.offsetHeight + offset;
+        let newBottomHeight = this.bottomPanel.offsetHeight - offset;
+
+        if (newTopHeight < this.minHeight || newBottomHeight < this.minHeight) return;
+
+        this.topPanel.style.height = newTopHeight + 'px';
+        this.bottomPanel.style.height = newBottomHeight + 'px';
+
+        this.lastDownY = e.clientY;
+    }
+
+    stopResizing() {
+        this.isResizing = false;
+        document.removeEventListener('mousemove', this._boundMouseMove);
+        document.removeEventListener('mouseup', this._boundStop);
+
+        this.topPanel.style.userSelect = 'auto';
+        this.bottomPanel.style.userSelect = 'auto';
+    }
+}
