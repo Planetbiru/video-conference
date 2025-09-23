@@ -4,90 +4,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Conference with Main Screen</title>
+    <title>Video Conference</title>
+    <link rel="shortcut icon" href="favicon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Bootstrap 4 -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.6.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="resizable-panel.js"></script>
 </head>
 
 <body>
 
-    <div class="root-container">
-        <div class="main-container left-panel">
-            <div class="main-content">
-                <video id="main-screen" autoplay muted playsinline></video>
-                <!-- Thumbnails row -->
-                <div id="video-container" class="video-thumbnails"></div>
+    <div class="root-container d-flex w-100 vh-100">
+
+        <!-- New Left Panel: User List -->
+        <div class="left-panel">
+            <h3 class="p-2d">Users</h3>
+            <ul id="user-list" class="p-2">
+                <li><a href="#">User 1</a></li>
+                <li><a href="#">User 2</a></li>
+                <li><a href="#">User 3</a></li>
+                <li><a href="#">User 4</a></li>
+            </ul>
+            <h3 class="p-2">Groups</h3>
+            <ul id="group-list" class="p-2">
+                <li><a href="#">Group 1</a></li>
+                <li><a href="#">Group 2</a></li>
+                <li><a href="#">Group 3</a></li>
+                <li><a href="#">Group 4</a></li>
+            </ul>
+        </div>
+
+        <!-- Resize bar between left and main -->
+        <div class="resize-bar-vertical resize-bar-left"></div>
+
+        <!-- Main Panel -->
+        <div class="main-panel flex-grow-1 d-flex flex-column">
+            <div class="main-content d-flex flex-column h-100">
+
+                <div class="top-panel position-relative" id="top-panel">
+                    <div class="main-screen-container position-relative">
+                        <video id="main-screen" autoplay muted playsinline class=""></video>
+                    </div>
+                    <button id="fullscreenBtn" class="btn btn-sm btn-dark fullscreen-button position-absolute">
+                        <i class="fa fa-expand"></i>
+                    </button>
+                </div>
+
+                <div class="resize-bar resize-bar-horizontal"></div>
+
+                <div class="bottom-panel" id="bottom-panel">
+                    <!-- Thumbnails row -->
+                    <div id="video-container" class="video-thumbnails d-flex flex-row overflow-auto"></div>
+                </div>
             </div>
         </div>
 
-        <!-- Control buttons like Teams -->
+        <!-- Resize bar between main and right -->
+        <div class="resize-bar-vertical resize-bar-right"></div>
 
-        <div class="resize-bar"></div>
+        <!-- Right Panel: Chat -->
+        <div class="chat-panel right-panel border-left d-flex flex-column">
 
-        <!-- Floating Chat -->
-        <div class="chat-panel right-panel">
-            
-            <div class="control-bar">
-                <button onclick="startCamera(this)"
-                    class="bg-blue-600 font-semibold py-2 px-6 rounded-full hover:bg-blue-700 transition">
+            <div class="control-bar p-2 d-flex justify-content-around">
+                <button onclick="startMicrophone(this)" class="btn btn-outline-secondary btn-share-microphone muted">
+                    <i class="fa fa-microphone"></i>
+                </button>
+                <button onclick="startCamera(this)" class="btn btn-outline-secondary btn-share-camera">
                     <i class="fa fa-camera"></i>
                 </button>
-                <button onclick="shareScreen(this)"
-                    class="bg-blue-600 font-semibold py-2 px-6 rounded-full hover:bg-blue-700 transition">
+                <button onclick="shareScreen(this)" class="btn btn-outline-secondary btn-share-screen">
                     <i class="fa fa-desktop"></i>
                 </button>
                 <button id="promoteBtn" onclick="promoteMyStream(this)" disabled
-                    class="bg-green-600 font-semibold py-2 px-6 rounded-full hover:bg-green-700 transition">
+                    class="btn btn-outline-warning btn-promote-screen">
                     <i class="fa fa-star"></i>
                 </button>
             </div>
 
+            <div class="chat-box-container flex-grow-1 d-flex flex-column border-top border-bottom">
+                <div id="chat-box" class="chat-box flex-grow-1 overflow-auto p-2"></div>
+                <div class="send-file-preview p-2"></div>
+            </div>
 
-            <div class="chat-box-container">
-            <div id="chat-box" class="chat-box"></div>
-            <div class="send-file-preview">
-            </div>
-            </div>
-            <div class="chat-input-area">
-                <form action="" onsubmit="sendChat(); return false;">
-                    <input id="chatInput" placeholder="Type a message..." autocomplete="off">
-                    <button type="button" onclick="selectFile()">📎</button>
-                    <button type="submit">➤</button>
+            <div class="chat-input-area border-top p-2">
+                <form action="" onsubmit="sendChat(); return false;" class="d-flex">
+                    <textarea id="chatInput" class="form-control mr-2" placeholder="Type a message..."
+                        autocomplete="off" spellcheck="false"></textarea>
+                    <button type="submit" class="btn btn-primary mr-2">➤</button>
+                    <button type="button" onclick="selectFile()" class="btn btn-secondary">📎</button>
                 </form>
             </div>
         </div>
-        
+
     </div>
-    <div style="display: none;"><input type="file" id="fileInput" /></div>
+
+    <div style="display: none;">
+        <input type="file" id="fileInput" />
+    </div>
+
+    <script src="main.js"></script>
     <script src="app.js"></script>
-    <script>
-        let resizablePanels;
-        document.addEventListener('DOMContentLoaded', function () {
-        
-            console.log('init');
-            resizablePanels = new ResizablePanels('.root-container', '.left-panel', '.right-panel', '.resize-bar', 200);
-
-            // Resize and redraw ERD
-            let updatedWidth = document.querySelector('.root-container .left-panel').offsetWidth;
-            if (isNaN(updatedWidth) || updatedWidth == 0) {
-                updatedWidth = parseInt(resizablePanels.getLeftPanelWidth());
-            }
-            if (isNaN(updatedWidth) || updatedWidth == 0)
-            {
-                updatedWidth = 240;
-            }
-            updatedWidth = updatedWidth - 240;
-            resizablePanels.init();
-
-            document.getElementById('fileInput').addEventListener('change', function (event) {
-                let file = event.target.files[0];
-                previewFile()
-            });
-
-        });
-    </script>
+    <!-- Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>

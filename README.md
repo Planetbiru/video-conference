@@ -116,7 +116,7 @@ node server.js
 
 ## License
 
-MIT License © \[Your Name]
+MIT License © Kamshory, MT
 
 ---
 
