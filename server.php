@@ -60,6 +60,11 @@ class SignallingServer implements MessageComponentInterface
         $this->users   = array();
     }
     
+    /**
+     * Generate new unique peerId.
+     *
+     * @return void
+     */
     public function generateNewId()
     {
         $uuid = uniqid();
@@ -338,12 +343,12 @@ class SignallingServer implements MessageComponentInterface
                 $fileId = $data['fileId'];
                 $data['realtime'] = false; // Set realtime to false
                 file_put_contents($dir . $fileId . "-meta.json", json_encode($data));
-            } else if (isset($data['type']) && $data['type'] === 'fileComplete') {
+            } elseif (isset($data['type']) && $data['type'] === 'fileComplete') {
                 $fileId = $data['fileId'];
                 $meta = json_decode(file_get_contents($dir . $fileId . "-meta.json"), true);
                 $meta['complete'] = true; // Set complete to true
                 file_put_contents($dir . $fileId . "-meta.json", json_encode($meta));
-            } else if (isset($data['type']) && $data['type'] === 'fileChunk') {
+            } elseif (isset($data['type']) && $data['type'] === 'fileChunk') {
                 $fileId = $data['fileId'];
                 $extension = $data['extension'];
                 $offset = (int) $data['offset'];
@@ -362,7 +367,7 @@ class SignallingServer implements MessageComponentInterface
                 $msg = json_encode($meta);
                 $from->send($msg);
             }
-            else if (isset($data['type']) && $data['type'] === 'fileRequest') {
+            elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
             }
             else
             {

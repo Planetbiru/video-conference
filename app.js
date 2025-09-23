@@ -1,13 +1,30 @@
+/**
+ * @type {Object.<string, RTCPeerConnection>}
+ * Stores all RTCPeerConnection objects, keyed by peer ID.
+ */
 const peers = {};
+
+/**
+ * @type {Object.<string, any>}
+ * Stores details about each peer, keyed by peer ID.
+ */
 let peerDetails = {};
+
 const localVideo = document.createElement("video");
 localVideo.autoplay = true;
 localVideo.muted = true;
 localVideo.playsInline = true;
 localVideo.id = "video-local";
+
+/** @type {number} Interval in milliseconds for WebSocket reconnection attempts. */
 let reconnectInterval = 5000;
+
+/** @type {boolean} Flag to ensure chat event history is requested only once. */
 let eventHistoryCalled = false;
 
+/**
+ * Configuration for RTCPeerConnection, including STUN servers for ICE candidate discovery.
+ */
 const peerConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -18,10 +35,25 @@ const peerConfiguration = {
   ]
 };
 
+/**
+ * @type {MediaStream | null}
+ * The local user's media stream (can contain video and/or audio).
+ */
 let localStream;
+
+/** @type {string} The unique identifier for the current client, assigned by the server. */
 let clientId;
+
+/**
+ * @type {Object.<string, {wrapper: HTMLElement, video: HTMLVideoElement}>}
+ * Stores remote video elements, keyed by peer ID.
+ */
 const remoteVideos = {};
+
+/** @type {HTMLVideoElement} The main video element for displaying the primary stream. */
 const mainScreen = document.getElementById("main-screen");
+
+/** @type {HTMLElement} The button to promote a stream to the main screen. */
 const promoteBtn = document.getElementById("promoteBtn");
 
 const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
@@ -39,9 +71,16 @@ let socketUrl = `${wsProtocol}://${wsHost}:${wsPort}?roomId=${encodeURIComponent
 let socket;
 
 
-
+/** @type {number} The size of each file chunk in bytes for file transfers. */
 const CHUNK_SIZE = 16 * 1024; // 16KB per chunk
+
+/**
+ * @type {Object.<string, {meta: any, from: string, chunks: Uint8Array[]}>}
+ * A temporary store for incoming file chunks, keyed by file ID.
+ */
 const incomingFiles = {};
+
+// --- Constants for CSS classes and selectors ---
 
 const CLASS_MUTED = "muted";
 const CLASS_SHARING = "status-sharing";
@@ -49,6 +88,8 @@ const SELECTOR_PROMOTE_STREAM = ".btn-promote-stream";
 const SELECTOR_SHARE_CAMERA = ".btn-share-camera";
 const SELECTOR_SHARE_SCREEN = ".btn-share-screen";
 const SELECTOR_SHARE_MICROPHONE = ".btn-share-microphone";
+
+// --- Constants for WebSocket message types ---
 
 const MESSAGE_TYPE_STREAM_UPDATE = "streamUpdate";
 const MESSAGE_TYPE_OFFER = "offer";
@@ -74,12 +115,17 @@ const MESSAGE_TYPE_FILE_REQUEST = "fileRequest";
 const MESSAGE_TYPE_FILE_UPDATE = "fileUpdate";
 const MESSAGE_TYPE_NEW_PEAR = "newPeer";
 
+/**
+ * @type {string[]}
+ * An array of selectors for control icons that can have a 'sharing' status.
+ */
 let controlIcons = [
   SELECTOR_SHARE_CAMERA,
   SELECTOR_SHARE_SCREEN,
   SELECTOR_PROMOTE_STREAM,
 ];
 
+/** Adds the 'sharing' class to all camera sharing buttons. */
 function markShareCameraActive() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_CAMERA);
   if (btns?.length) {
@@ -89,6 +135,7 @@ function markShareCameraActive() {
   }
 }
 
+/** Removes the 'sharing' class from all camera sharing buttons. */
 function markShareCameraInactive() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_CAMERA);
   if (btns?.length) {
@@ -98,11 +145,16 @@ function markShareCameraInactive() {
   }
 }
 
+/**
+ * Checks if any camera sharing button is currently active.
+ * @returns {boolean} True if a camera sharing button has the 'sharing' class.
+ */
 function isShareCameraActive() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_CAMERA);
   return Array.from(btns).some((btn) => btn.classList.contains(CLASS_SHARING));
 }
 
+/** Adds the 'sharing' class to all screen sharing buttons. */
 function markShareScreenActive() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_SCREEN);
   if (btns?.length) {
@@ -112,11 +164,19 @@ function markShareScreenActive() {
   }
 }
 
+/**
+ * Checks if any screen sharing button is currently active.
+ * @returns {boolean} True if a screen sharing button has the 'sharing' class.
+ */
 function markShareScreenInactive() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_SCREEN);
   return Array.from(btns).some((btn) => btn.classList.contains(CLASS_SHARING));
 }
 
+/**
+ * Checks if any screen sharing button is currently active.
+ * @returns {boolean} True if a screen sharing button has the 'sharing' class.
+ */
 function isShareScreenActive() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_SCREEN);
   let active = false;
@@ -131,6 +191,7 @@ function isShareScreenActive() {
   return false;
 }
 
+/** Adds the 'sharing' class to all stream promotion buttons. */
 function markPromoteStreamActive() {
   let btns = document.querySelectorAll(SELECTOR_PROMOTE_STREAM);
   if (btns?.length) {
@@ -140,23 +201,36 @@ function markPromoteStreamActive() {
   }
 }
 
+/**
+ * Checks if any stream promotion button is currently active.
+ * @returns {boolean} True if a stream promotion button has the 'sharing' class.
+ */
 function markPromoteStramInavtive() {
   let btns = document.querySelectorAll(SELECTOR_PROMOTE_STREAM);
   return Array.from(btns).some((btn) => btn.classList.contains(CLASS_SHARING));
 }
 
+/**
+ * Checks if any stream promotion button is currently active.
+ * @returns {boolean} True if a stream promotion button has the 'sharing' class.
+ */
 function isPromoteStreamActive() {
   let btns = document.querySelectorAll(SELECTOR_PROMOTE_STREAM);
   return Array.from(btns).some((btn) => btn.classList.contains(CLASS_SHARING));
 }
 
+/**
+ * Checks if the microphone is currently muted by checking for the 'muted' class on buttons.
+ * @returns {boolean} True if a microphone button has the 'muted' class.
+ */
 function isMicrophoneMuted() {
   let btns = document.querySelectorAll(SELECTOR_SHARE_MICROPHONE);
   return Array.from(btns).some((btn) => btn.classList.contains(CLASS_MUTED));
 }
 
 /**
- * Returns true if localStream currently has at least one enabled audio track.
+ * Checks if the local stream has at least one enabled audio track.
+ * @returns {boolean} True if an enabled audio track exists, false otherwise.
  */
 function isMicrophoneActive() {
   if (!localStream) return false;
@@ -165,6 +239,10 @@ function isMicrophoneActive() {
   return audioTracks.some((t) => t.enabled && !t.muted);
 }
 
+/**
+ * Toggles the mute state of the local audio stream and updates the UI of the provided button.
+ * @param {HTMLElement} buttonElement - The button element to update.
+ */
 function toggleMute(buttonElement) {
   if (!localStream) {
     return;
@@ -198,11 +276,10 @@ function toggleMute(buttonElement) {
 }
 
 /**
- * Start microphone (or stop if already active).
- * Adds audio track(s) to localStream (or creates localStream if none),
- * updates UI class on buttonElement, notifies peers and renegotiates.
- *
- * @param {HTMLElement} buttonElement - the button DOM element that triggered this (can be null)
+ * Starts or stops the microphone. If the microphone is already active, it stops it.
+ * Otherwise, it requests audio permissions and adds the audio track to the local stream.
+ * It also updates the UI and notifies peers.
+ * @param {HTMLElement} [buttonElement] - The button element that triggered this action.
  */
 async function startMicrophone(buttonElement) {
   // If mic already active -> stop it
@@ -269,8 +346,8 @@ async function startMicrophone(buttonElement) {
 }
 
 /**
- * Stop microphone: stop audio tracks, remove audio senders from peers,
- * keep video tracks if present (so camera/screen remains).
+ * Stops all local audio tracks, removes them from the local stream,
+ * and notifies peers to remove the audio track from their end.
  */
 async function stopMicrophone() {
   if (!localStream) {
@@ -340,7 +417,7 @@ async function stopMicrophone() {
 }
 
 /**
- * Mute local audio (sets enabled = false) — does not remove tracks nor renegotiate.
+ * Mutes all audio tracks in the local stream by setting `enabled` to `false`.
  */
 function muteLocalAudio() {
   if (!localStream) {
@@ -358,7 +435,7 @@ function muteLocalAudio() {
 }
 
 /**
- * Unmute local audio (sets enabled = true).
+ * Unmutes all audio tracks in the local stream by setting `enabled` to `true`.
  */
 function unmuteLocalAudio() {
   if (!localStream) {
@@ -375,10 +452,10 @@ function unmuteLocalAudio() {
 }
 
 /**
- * Toggle mute/unmute. If no audio track exists, this will attempt to request mic.
- * If audio tracks exist, toggles enabled flag.
- *
- * @param {HTMLElement} buttonElement - button to toggle UI classes (optional)
+ * Toggles the mute state of the local audio. If no audio track exists,
+ * it attempts to start the microphone. Otherwise, it toggles the `enabled`
+ * state of existing audio tracks.
+ * @param {HTMLElement} [buttonElement] - The button element to update UI classes on.
  */
 async function toggleMuteAudio(buttonElement) {
   // if no audio tracks but we have localStream -> start microphone (adds audio track)
@@ -409,7 +486,8 @@ async function toggleMuteAudio(buttonElement) {
 }
 
 /**
- * Utility: remove all audio senders from peers (used when fully stopping audio).
+ * Removes all audio senders from all peer connections and renegotiates.
+ * This is used when the local user stops sharing their microphone entirely.
  */
 async function removeAudioSendersFromPeers() {
   for (const [peerId, pc] of Object.entries(peers)) {
@@ -439,6 +517,10 @@ async function removeAudioSendersFromPeers() {
   }
 }
 
+/**
+ * Switches the main screen to display the stream from the specified peer ID.
+ * @param {string} idToPromote - The ID of the peer whose stream should be promoted.
+ */
 function switchStreamTo(idToPromote) {
   if (idToPromote === clientId) {
     setMainScreenStream(localStream);
@@ -447,6 +529,10 @@ function switchStreamTo(idToPromote) {
   }
 }
 
+/**
+ * Joins a room by updating the current room ID and reconnecting the WebSocket.
+ * @param {string} roomId - The ID of the room to join.
+ */
 function joinRoom(roomId) {
   if (!roomId) {
     return;
@@ -455,6 +541,10 @@ function joinRoom(roomId) {
   connectSocket(roomId);
 }
 
+/**
+ * Handles incoming WebSocket messages and routes them to the appropriate handler functions.
+ * @param {object} msg - The parsed JSON message object from the WebSocket.
+ */
 async function handleOnMessage(msg)
 {
   let peerId = msg.from;
@@ -702,6 +792,10 @@ async function handleOnMessage(msg)
     }
 }
 
+/**
+ * Establishes a WebSocket connection to the signaling server.
+ * @param {string} roomId - The ID of the room to connect to.
+ */
 function connectSocket(roomId) {
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.close();
@@ -735,6 +829,10 @@ function connectSocket(roomId) {
   };
 }
 
+/**
+ * Renders a single message from chat history, which can be a chat message or a file placeholder.
+ * @param {object} msg - The message object from history.
+ */
 function putHistoryChat(msg) {
  
   if(msg.type === MESSAGE_TYPE_CHAT)
@@ -747,6 +845,10 @@ function putHistoryChat(msg) {
   }
 }
 
+/**
+ * Creates and appends a placeholder for an incoming file to the chat box.
+ * @param {object} msg - The file metadata message.
+ */
 function putFilePlaceholder(msg) {
   const chatBox = document.getElementById("chat-box");
     // Container utama chat
@@ -814,8 +916,14 @@ function putFilePlaceholder(msg) {
   requestIncompletedFile();
 }
 
+/** @type {boolean} Flag to track if missed files are currently being loaded. */
 let isMissedFilesLoaded = false;
 
+/**
+ * Initiates the process of loading files that were missed (e.g., sent before this client joined).
+ * It requests completed files once and then polls for incompleted files periodically.
+ * This function ensures it only runs one process at a time.
+ */
 function loadMissedFiles()
 {
   if(isMissedFilesLoaded)
@@ -829,7 +937,12 @@ function loadMissedFiles()
   isMissedFilesLoaded = true;
 }
 
+/** @type {number} Interval ID for the incompleted file check. */
 let checkInterval = setInterval('', 100000);
+
+/**
+ * Periodically requests updates for files that are marked as incomplete and not yet loaded.
+ */
 function requestIncompletedFile()
 {
   let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="false"][data-loaded="false"]');
@@ -847,6 +960,10 @@ function requestIncompletedFile()
     isMissedFilesLoaded = false;
   }
 }
+
+/**
+ * Requests the content of files that are marked as complete but have not been loaded yet.
+ */
 function requestCompletedFile()
 {
   let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="true"][data-loaded="false"]');
@@ -861,6 +978,11 @@ function requestCompletedFile()
   }
 }
 
+/**
+ * Escapes HTML special characters in a string.
+ * @param {string} str - The string to escape.
+ * @returns {string} The escaped string.
+ */
 function escapeHtml(str) {
     return str
         .replace(/&/g, "&amp;")
@@ -870,11 +992,20 @@ function escapeHtml(str) {
         .replace(/'/g, "&#039;");
 }
 
+/**
+ * Replaces newline characters with HTML <br> tags.
+ * @param {string} text - The text to process.
+ * @returns {string} The text with newlines converted to <br> tags.
+ */
 function nl2br(text)
 {
   return text.replace(/\n/g, "<br>");
 }
 
+/**
+ * Renders a new chat message and appends it to the chat box.
+ * @param {object} msg - The chat message object.
+ */
 function renderNewChat(msg) {
   const chatBox = document.getElementById("chat-box");
 
@@ -905,33 +1036,55 @@ function renderNewChat(msg) {
   }, 100);
 }
 
+/**
+ * Renders a list of chat history messages.
+ * @param {object[]} data - An array of message objects.
+ */
 function putChatHistory(data) {
   data.forEach((msg) => putHistoryChat(msg));
 }
 
+/**
+ * Updates the details for a specific peer.
+ * @param {string} peerId - The ID of the peer to update.
+ * @param {object} peerDetail - The new details for the peer.
+ */
 function updatePeer(peerId, peerDetail) {
   peerDetails[peerId] = peerDetail;
 }
 
+/** Sends a request to the server for the chat history of the current room. */
 function requestChatHistory() {
   socket.send(
     JSON.stringify({ type: MESSAGE_TYPE_REQUEST_CHAT_HISTORY, from: clientId })
   );
 }
 
+/** Sends a request to the server for any missed chat events. */
 function requestChatEvent() {
   socket.send(
     JSON.stringify({ type: MESSAGE_TYPE_REQUEST_CHAT_EVENT, from: clientId })
   );
 }
+
 // --- helpers ---
 
+/**
+ * Checks if two MediaStream objects are the same instance.
+ * @param {MediaStream} a - The first MediaStream.
+ * @param {MediaStream} b - The second MediaStream.
+ * @returns {boolean} True if they are the same object.
+ */
 function isSameStream(a, b) {
   // Simple guard to check if two MediaStreams are the same object
   return a === b;
 }
 
-// Centralized main screen setter with autoplay friendliness (Opera/Chrome)
+/**
+ * Sets the stream for the main screen video element.
+ * Handles autoplay policies by muting the video.
+ * @param {MediaStream | null} stream - The stream to display, or null to clear.
+ */
 function setMainScreenStream(stream) {
   if (!mainScreen) return;
   if (!stream) {
@@ -949,6 +1102,9 @@ function setMainScreenStream(stream) {
   });
 }
 
+/**
+ * Sets the main screen to display the local user's stream.
+ */
 function setMainScreenLocal() {
   if (localStream) {
     setMainScreenStream(localStream);
@@ -958,6 +1114,9 @@ function setMainScreenLocal() {
   }
 }
 
+/**
+ * Creates and appends the local video element and its controls to the video container.
+ */
 function setupLocalVideo() {
   const videoWrapper = document.createElement("div");
   videoWrapper.className = "video-wrapper";
@@ -990,7 +1149,12 @@ function setupLocalVideo() {
   document.getElementById("video-container").appendChild(videoWrapper);
 }
 
-// create peer if not exists (idempotent)
+/**
+ * Creates and configures an RTCPeerConnection for a given peer ID if it doesn't already exist.
+ * This function is idempotent.
+ * @param {string} id - The ID of the peer to create a connection for.
+ * @returns {RTCPeerConnection} The RTCPeerConnection object for the peer.
+ */
 function createPeer(id) {
   if (peers[id]) return peers[id];
 
@@ -1057,7 +1221,12 @@ function createPeer(id) {
   return rtcPeerConnection;
 }
 
-// Global callback, bisa kamu override di aplikasi
+/**
+ * Callback function that is executed when the ICE connection for a peer is ready.
+ * This is where you can trigger actions that depend on a fully established peer connection.
+ * @param {string} peerId - The ID of the peer whose ICE connection is ready.
+ * @param {RTCPeerConnection} connection - The RTCPeerConnection object.
+ */
 function onIceReady(peerId, connection) {
   console.log("ICE is ready for peer:", peerId);
   
@@ -1069,7 +1238,10 @@ function onIceReady(peerId, connection) {
   }
 }
 
-
+/**
+ * Creates an offer to connect to a peer and sends it via the WebSocket.
+ * @param {string} id - The ID of the peer to send the offer to.
+ */
 async function createOffer(id) {
   const pc = createPeer(id);
   const offer = await pc.createOffer();
@@ -1079,7 +1251,12 @@ async function createOffer(id) {
   );
 }
 
-// ensure there is a placeholder wrapper+video for peerId
+/**
+ * Ensures that a video element and its wrapper exist for a remote peer.
+ * If they don't exist, they are created and added to the DOM.
+ * @param {string} peerId - The ID of the remote peer.
+ * @returns {{wrapper: HTMLElement, video: HTMLVideoElement}} The wrapper and video element for the peer.
+ */
 function ensureRemoteVideoElement(peerId) {
   if (remoteVideos[peerId]) return remoteVideos[peerId];
 
@@ -1125,8 +1302,12 @@ function ensureRemoteVideoElement(peerId) {
   return remoteVideos[peerId];
 }
 
-// Wait until the remote video element has a srcObject and is playing (or loadedmetadata),
-// then attach it to mainScreen. Uses events instead of blind polling.
+/**
+ * Waits for a remote peer's video stream to become ready and then attaches it to the main screen.
+ * It uses event listeners ('loadedmetadata', 'playing') to avoid polling.
+ * @param {string} peerId - The ID of the peer whose stream to attach.
+ * @param {number} [timeout=5000] - The timeout in milliseconds to wait for the stream.
+ */
 function waitAndAttachToMain(peerId, timeout = 5000) {
   if (peerId === clientId) {
     setMainScreenStream(localStream);
@@ -1175,12 +1356,20 @@ function waitAndAttachToMain(peerId, timeout = 5000) {
   }, timeout);
 }
 
+/**
+ * Checks if the microphone is currently muted by inspecting the UI.
+ * @returns {boolean} True if the microphone button has the 'muted' class.
+ */
 function isAudioMuted() {
   let mic = document.querySelector(SELECTOR_SHARE_MICROPHONE);
   return mic.classList.contains(CLASS_MUTED);
 }
 
-// Start camera, attach to localVideo and replace senders; then broadcast streamUpdate and renegotiate
+/**
+ * Starts or stops the camera. If the camera is already active, it stops it.
+ * Otherwise, it requests video and audio permissions and sets up the local stream.
+ * @param {HTMLElement} buttonElement - The button element that triggered this action.
+ */
 async function startCamera(buttonElement) {
   if (buttonElement.classList.contains(CLASS_SHARING)) {
     buttonElement.classList.remove(CLASS_SHARING);
@@ -1229,7 +1418,11 @@ async function startCamera(buttonElement) {
   }
 }
 
-// Share screen similarly
+/**
+ * Starts or stops screen sharing. If screen sharing is active, it stops it.
+ * Otherwise, it requests screen sharing permissions and sets up the local stream.
+ * @param {HTMLElement} buttonElement - The button element that triggered this action.
+ */
 async function shareScreen(buttonElement) {
   if (buttonElement.classList.contains(CLASS_SHARING)) {
     buttonElement.classList.remove(CLASS_SHARING);
@@ -1284,6 +1477,11 @@ async function shareScreen(buttonElement) {
   }
 }
 
+/**
+ * Replaces or adds tracks to all existing peer connections.
+ * This is used when the local stream changes (e.g., starting camera or screen share).
+ * @param {MediaStream} stream - The new local stream.
+ */
 async function replaceOrAddTracksToPeers(stream) {
   // For each peer, replace existing senders or add tracks if none
   await Promise.all(
@@ -1311,6 +1509,9 @@ async function replaceOrAddTracksToPeers(stream) {
   );
 }
 
+/**
+ * Renegotiates the connection with all peers by creating and sending a new offer.
+ */
 async function renegotiateWithPeers() {
   // send fresh offers to each peer to ensure remote ontrack fires reliably
   for (const [peerId, pc] of Object.entries(peers)) {
@@ -1331,6 +1532,9 @@ async function renegotiateWithPeers() {
   }
 }
 
+/**
+ * Sends a chat message to the server and renders it locally.
+ */
 function sendChat() {
   const text = document.getElementById("chatInput").value;
   if (!text.trim()) return;
@@ -1348,6 +1552,10 @@ function sendChat() {
   socket.send(JSON.stringify(msg));
 }
 
+/**
+ * Generates a unique message ID.
+ * @returns {string} A unique ID.
+ */
 function generateMessageId() {
   if (crypto && crypto.randomUUID) {
     return crypto.randomUUID(); // modern browsers
@@ -1356,6 +1564,11 @@ function generateMessageId() {
   }
 }
 
+/**
+ * Promotes the local user's stream to be the main stream for all participants.
+ * It updates the UI and sends a promotion message to the server.
+ * @param {HTMLElement} buttonElement - The button element that triggered this action.
+ */
 function promoteMyStream(buttonElement) {
   if (buttonElement.classList.contains(CLASS_SHARING)) {
     buttonElement.classList.remove(CLASS_SHARING);
@@ -1380,12 +1593,18 @@ function promoteMyStream(buttonElement) {
   return;
 }
 
+/**
+ * Demotes the local user's stream from being the main stream.
+ */
 function demoteMyStream() {
   socket.send(
     JSON.stringify({ type: MESSAGE_TYPE_DEMOTE_STREAM, from: clientId, eventId: generateNewId() })
   );
 }
 
+/**
+ * Promotes the currently selected stream (via radio button) to the main screen.
+ */
 function promoteSelected() {
   if (!clientId) {
     console.error("Client ID not ready");
@@ -1407,6 +1626,11 @@ function promoteSelected() {
   );
 }
 
+/**
+ * Replaces or adds tracks to all peer connections.
+ * It finds existing senders of the same kind and replaces their tracks, or adds a new track if no sender exists.
+ * @param {MediaStream} stream - The new stream to use for the tracks.
+ */
 async function replaceOrAddTracksToPeers(stream) {
   await Promise.all(
     Object.entries(peers).map(async ([peerId, pc]) => {
@@ -1426,7 +1650,10 @@ async function replaceOrAddTracksToPeers(stream) {
   );
 }
 
-// Stop sharing camera or screen (stops video tracks only, keeps audio if present)
+/**
+ * Stops sharing the local video stream (camera or screen).
+ * It stops the video tracks, updates the UI, and notifies peers to remove the video track.
+ */
 async function stopSharing() {
   try {
     if (localStream) {
@@ -1492,7 +1719,11 @@ async function stopSharing() {
 }
 
 
-// --- helper ---
+/**
+ * Converts an ArrayBuffer to a Base64 encoded string.
+ * @param {ArrayBuffer} buffer - The buffer to convert.
+ * @returns {string} The Base64 encoded string.
+ */
 function arrayBufferToBase64(buffer) {
   let binary = "";
   let bytes = new Uint8Array(buffer);
@@ -1503,6 +1734,10 @@ function arrayBufferToBase64(buffer) {
   return btoa(binary);
 }
 
+/**
+ * Generates a unique ID for a file.
+ * @returns {string} A unique file ID.
+ */
 function generateFileId() {
   if (window.crypto?.randomUUID) {
     return crypto.randomUUID();
@@ -1510,12 +1745,19 @@ function generateFileId() {
   return "file-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
 }
 
+/**
+ * Gets the extension from a filename.
+ * @param {string} filename - The name of the file.
+ * @returns {string} The file extension in lowercase.
+ */
 function getFileExtension(filename) {
   const parts = filename.split(".");
   return parts.length > 1 ? parts.pop().toLowerCase() : "";
 }
 
-// --- kirim file ---
+/**
+ * Sends a selected file to the server in chunks and displays it in the local chat.
+ */
 async function sendFile() {
   const fileInput = document.getElementById("fileInput");
   const file = fileInput.files[0];
@@ -1595,10 +1837,16 @@ async function sendFile() {
   }, 100);
 }
 
+/**
+ * Triggers the file input dialog.
+ */
 function selectFile() {
   document.getElementById("fileInput").click();
 }
 
+/**
+ * Displays a preview of the selected file and provides options to send or cancel.
+ */
 function previewFile() {
   const fileInput = document.getElementById("fileInput");
   const previewContainer = document.querySelector(".send-file-preview");
@@ -1644,13 +1892,19 @@ function previewFile() {
   }, 100);
 }
 
+/**
+ * Clears the file input and removes the file preview.
+ */
 function clearFile() {
   const fileInput = document.getElementById("fileInput");
   fileInput.value = ""; // kosongkan file input
   document.querySelector(".send-file-preview").innerHTML = ""; // hapus preview
 }
 
-
+/**
+ * Generates a new unique ID based on the current timestamp and a random number.
+ * @returns {string} A unique ID string.
+ */
 function generateNewId() {
     // mirip uniqid() di PHP → pakai timestamp dalam milidetik (hex string)
     let uuid = Date.now().toString(16);
@@ -1669,7 +1923,9 @@ function generateNewId() {
     return uuid + random;
 }
 
-
+/**
+ * DOMContentLoaded event listener to initialize the WebSocket connection.
+ */
 document.addEventListener('DOMContentLoaded', ()=>{
   connectSocket(currentRoomId);
 });

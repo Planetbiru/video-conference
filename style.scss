@@ -6,6 +6,7 @@ body {
   flex-direction: column;
   height: 100vh;
   margin: 0;
+  font-size: 14px;
 }
 
 a {
@@ -247,6 +248,33 @@ a {
     box-sizing: border-box;
     border-right: 1px solid #dddddd;
     background-color: #fbfbfb;
+
+    h3{
+      background-color: #ccc;
+      margin: 0 0 0px 0;
+      padding: 5px 10px;
+      font-size: 1rem;
+      font-weight: normal;
+    }
+    ul
+    {
+      list-style: none;
+      padding: 10px;
+      margin: 0;
+      li{
+        margin-bottom: 10px;
+        a{
+          background-color: #EEEEEE;
+          border-radius: 3px;
+          display: block;
+          padding: 5px 10px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          cursor: pointer;
+        }
+      }
+    }
   }
 
   .main-panel {
