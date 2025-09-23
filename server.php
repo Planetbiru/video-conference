@@ -1,24 +1,70 @@
 <?php
 
+namespace SignallingServer;
+
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Ratchet\Http\HttpServer;
 use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
+use \SplObjectStorage;
+use \Exception;
 
 require __DIR__ . '/inc.lib/vendor/autoload.php';
 
+/**
+ * SignallingServer
+ *
+ * This class implements a WebSocket signaling server using Ratchet.
+ * It is designed to support:
+ * - Multi-room communication (roomId)
+ * - Peer-to-peer signaling for WebRTC
+ * - Chat history & event persistence (file-based)
+ * - File sharing with chunked transfer
+ *
+ * Responsibilities:
+ * - Manage connected clients (via SplObjectStorage)
+ * - Track user sessions and metadata (username, room, etc.)
+ * - Handle signaling messages for chat, file transfer, and stream events
+ * - Persist chat history and events to disk
+ */
 class SignallingServer implements MessageComponentInterface
 {
-    protected $clients; // SplObjectStorage
-    protected $users;   // peerId => user info
+    /**
+     * All connected WebSocket clients.
+     * Each ConnectionInterface is mapped to its peerId.
+     *
+     * @var SplObjectStorage
+     */
+    protected $clients;
 
+    /**
+     * Map of peerId => user information
+     * Each entry contains:
+     * - peerId
+     * - username
+     * - name
+     * - session
+     * - roomId
+     *
+     * @var array
+     */
+    protected $users;
+
+    /**
+     * Constructor
+     */
     public function __construct()
     {
-        $this->clients = new \SplObjectStorage;
+        $this->clients = new SplObjectStorage;
         $this->users   = array();
     }
 
+    /**
+     * Handle new WebSocket connection.
+     *
+     * @param ConnectionInterface $conn
+     */
     public function onOpen(ConnectionInterface $conn)
     {
         $uri = $conn->httpRequest->getUri();
@@ -28,7 +74,7 @@ class SignallingServer implements MessageComponentInterface
         $peerId = substr(md5(uniqid()), 0, 8);
         $user = $this->getUserFromSession($sessionId);
 
-        // Save mapping
+        // Save mapping: connection -> peerId, peerId -> user info
         $this->clients->attach($conn, $peerId);
         $this->users[$peerId] = array(
             'peerId'   => $peerId,
@@ -67,10 +113,12 @@ class SignallingServer implements MessageComponentInterface
         }
     }
 
-    public function getFileMeta($fileId) {
-
-    }
-
+    /**
+     * Load chat history from file (history_<roomId>.txt).
+     *
+     * @param string $roomId
+     * @return array
+     */
     public function loadChatHistory($roomId)
     {
         $dir = dirname(__DIR__) . "/";
@@ -81,6 +129,8 @@ class SignallingServer implements MessageComponentInterface
         foreach ($lines as $line) {
             if (trim($line) !== '') {
                 $row = json_decode($line, true);
+                
+                // If entry is fileMeta, reload from meta JSON file
                 if ($row['type'] == 'fileMeta') {
                     $fileId = $row['fileId'];
                     $saved = json_decode(file_get_contents($dir . $fileId . "-meta.json"), true);
@@ -94,6 +144,13 @@ class SignallingServer implements MessageComponentInterface
         return $data;
     }
     
+    /**
+     * Load chat events (promoteStream, demoteStream, etc.)
+     * from file (event_<roomId>.txt).
+     *
+     * @param string $roomId
+     * @return array
+     */
     public function loadChatEvent($roomId)
     {
         $dir = dirname(__DIR__) . "/";
@@ -110,6 +167,21 @@ class SignallingServer implements MessageComponentInterface
         return $data;
     }
 
+    /**
+     * Handle incoming messages from a client.
+     *
+     * Supported message types:
+     * - Direct private message (with "to")
+     * - setMainScreen (update main video stream)
+     * - requestChatHistory / requestChatEvent
+     * - fileRequest (serve file in chunks)
+     * - fileMeta, fileChunk, fileComplete (file upload handling)
+     * - fileUpdate (notify meta update)
+     * - General chat broadcast
+     *
+     * @param ConnectionInterface $from
+     * @param string $msg
+     */
     public function onMessage(ConnectionInterface $from, $msg)
     {
         $dir = dirname(__DIR__) . "/";
@@ -156,26 +228,26 @@ class SignallingServer implements MessageComponentInterface
             $fileId = $data['fileId'];
             $metaFile = $dir . $fileId . "-meta.json";
             if (!is_file($metaFile)) {
-                // meta tidak tersedia
+                // meta not available
                 $from->send(json_encode(['type' => 'error', 'message' => 'meta not found', 'fileId' => $fileId]));
                 return;
             }
 
             $meta = json_decode(file_get_contents($metaFile), true);
             if (empty($meta) || empty($meta['complete'])) {
-                // belum selesai di-upload
+                // not finished uploading yet
                 $from->send(json_encode(['type' => 'error', 'message' => 'file not available yet', 'fileId' => $fileId]));
                 return;
             }
 
-            // gunakan chunkSize dari meta namun batasi maksimal agar tidak membludak
+            // use chunkSize from meta but limit maximum to avoid overflow
             $chunkSize = isset($meta['chunkSize']) ? (int)$meta['chunkSize'] : 16 * 1024;
             if ($chunkSize <= 0 || $chunkSize > 128 * 1024) $chunkSize = 16 * 1024; // default 16KB, max 128KB
 
             $fileSize  = isset($meta['size']) ? (int)$meta['size'] : 0;
             $extension = isset($meta['extension']) ? $meta['extension'] : '';
 
-            // Kirim meta singkat dulu (klien butuh tahu nama/size/extension)
+            // Send short meta first (client needs to know name/size/extension)
             $sendMeta = [
                 'type'      => 'fileMeta',
                 'fileId'    => $meta['fileId'],
@@ -200,9 +272,9 @@ class SignallingServer implements MessageComponentInterface
                 return;
             }
 
-            // loop dan kirim per-chunk. Hati2 dengan memory: unset & collect GC segera
+            // loop and send per-chunk. Be careful with memory: unset & collect GC immediately
             $bytesSent = 0;
-            $chunksBeforeGc = 32; // setelah 32 chunk, panggil gc_collect_cycles
+            $chunksBeforeGc = 32; // after 32 chunks, call gc_collect_cycles
             $chunkCounter = 0;
 
             while (!feof($fh) && $bytesSent < $fileSize) {
@@ -211,7 +283,7 @@ class SignallingServer implements MessageComponentInterface
                 $buff = fread($fh, $read);
                 if ($buff === false || $buff === '') break;
 
-                // base64 encode chunk (perlu agar bisa disisipkan di JSON)
+                // base64 encode chunk (needed to embed in JSON)
                 $encoded = base64_encode($buff);
 
                 $result = [
@@ -225,16 +297,16 @@ class SignallingServer implements MessageComponentInterface
 
                 $from->send(json_encode($result));
 
-                // update counters & free memori secepat mungkin
+                // update counters & free memory as soon as possible
                 $bytesSent += strlen($buff);
                 $chunkCounter++;
 
-                // hapus variabel besar supaya memory bisa dibebaskan
+                // delete large variables so memory can be freed
                 unset($buff, $encoded, $result);
 
-                // ringankan event loop / network buffer tiap beberapa chunk
+                // lighten event loop / network buffer every few chunks
                 if (($chunkCounter % 4) === 0) {
-                    // beri waktu singkat supaya socket bisa flush; nilai boleh disesuaikan
+                    // give a short delay so socket can flush; value can be adjusted
                     usleep(1000); // 1ms
                 }
                 if (($chunkCounter % $chunksBeforeGc) === 0) {
@@ -244,7 +316,7 @@ class SignallingServer implements MessageComponentInterface
 
             fclose($fh);
 
-            // selesai: beri tahu klien
+            // done: notify client
             $from->send(json_encode([
                 'type'   => 'fileComplete',
                 'fileId' => $fileId,
@@ -272,7 +344,7 @@ class SignallingServer implements MessageComponentInterface
                 }
             }
 
-             // Only for peer who request update
+            // Only for peer who request update
             if (isset($data['type']) && $data['type'] === 'fileUpdate') {
                 $fileId = $data['fileId'];
                 $meta = json_decode(file_get_contents($dir . $fileId . "-meta.json"), true);
@@ -284,7 +356,6 @@ class SignallingServer implements MessageComponentInterface
             }
             else
             {
-
                 // Broadcast to all peers in room
                 foreach ($this->clients as $client) {
                     $targetPeerId = $this->clients[$client];
@@ -293,8 +364,6 @@ class SignallingServer implements MessageComponentInterface
                     }
                 }
             }
-
-           
         }
 
         // Save history to file
@@ -310,6 +379,13 @@ class SignallingServer implements MessageComponentInterface
         }
     }
 
+
+    /**
+     * Handle client disconnection.
+     * Remove peer from tracking and notify room peers.
+     *
+     * @param ConnectionInterface $conn
+     */
     public function onClose(ConnectionInterface $conn)
     {
         $peerId = $this->clients[$conn];
@@ -331,12 +407,25 @@ class SignallingServer implements MessageComponentInterface
         }
     }
 
-    public function onError(ConnectionInterface $conn, \Exception $e)
+    /**
+     * Handle error event for a client.
+     *
+     * @param ConnectionInterface $conn
+     * @param Exception $e
+     */
+    public function onError(ConnectionInterface $conn, Exception $e)
     {
         echo "Error: " . $e->getMessage() . "\n";
         $conn->close();
     }
 
+    /**
+     * Load user information from PHP session file.
+     * NOTE: This is a demo implementation and not secure for production.
+     *
+     * @param string $sessionId
+     * @return array
+     */
     private function getUserFromSession($sessionId)
     {
         if (!$sessionId) return array();
