@@ -850,6 +850,13 @@ function putHistoryChat(msg) {
  * @param {object} msg - The file metadata message.
  */
 function putFilePlaceholder(msg) {
+
+  let fileId = msg.fileId;
+  if(document.querySelector(`.url-src[data-file-id="${fileId}"]`))
+  {
+    return;
+  }
+
   const chatBox = document.getElementById("chat-box");
     // Container utama chat
   const chatContainer = document.createElement("div");
@@ -945,7 +952,7 @@ let checkInterval = setInterval('', 100000);
  */
 function requestIncompletedFile()
 {
-  let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="false"][data-loaded="false"]');
+  let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="false"][data-loaded="false"][data-process="false"]');
   if(elements)
   {
     elements.forEach(file=>{
@@ -966,7 +973,7 @@ function requestIncompletedFile()
  */
 function requestCompletedFile()
 {
-  let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="true"][data-loaded="false"]');
+  let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="true"][data-loaded="false"][data-process="false"]');
   if(elements)
   {
     elements.forEach(element=>{
