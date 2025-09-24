@@ -5,7 +5,7 @@ CREATE TABLE chat_room (
     room_type TINYINT NOT NULL DEFAULT 1, -- 1 = private, 2 = group.
     share_history TINYINT(1) DEFAULT 0, -- new joiner can see old chat or not
     time_create TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 2. Tabel participant
@@ -16,7 +16,7 @@ CREATE TABLE participant (
     display_name VARCHAR(100),
     session_id VARCHAR(128),
     time_create TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE chat_room_participant (
@@ -39,7 +39,7 @@ CREATE TABLE chat_message (
     delete_for_sender TINYINT(1) DEFAULT 0,
     delete_for_all TINYINT(1) DEFAULT 0, -- if 1, message will not show to new joiner even chat_room.share_history = 1
     time_create TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE chat_event (
@@ -48,7 +48,7 @@ CREATE TABLE chat_event (
     participant_id VARCHAR(40) NULL,
     message_type VARCHAR(100) NULL,
     time_create TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. Tabel chat_message which is deleted by participants. Message will be hidden on their screen
@@ -68,7 +68,7 @@ CREATE TABLE chat_attachment (
     participant_id VARCHAR(40) NULL,
     file_meta_id VARCHAR(40) NULL,       -- UUID
     time_create TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 6. Tabel file_meta
@@ -86,5 +86,5 @@ CREATE TABLE file_meta (
     complete TINYINT(1) DEFAULT 0,      -- 0 = false, 1 = complete
     realtime TINYINT(1) DEFAULT 0,      -- 0 = false, 1 = realtime
     time_create TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    time_edit TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
