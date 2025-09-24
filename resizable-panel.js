@@ -1,8 +1,7 @@
 /**
  * Class representing resizable three horizontal panels with
  * two vertical resize bars between them (left–main–right).
- * 
- * Handles mouse dragging to dynamically adjust panel widths
+ * * Handles mouse and touch dragging to dynamically adjust panel widths
  * and stores the state in localStorage for persistence.
  */
 class ResizableThreePanels {
@@ -32,7 +31,7 @@ class ResizableThreePanels {
         this.localStorageKeyLeft = `${this.selector}leftPanelWidth`;
         this.localStorageKeyMain = `${this.selector}mainPanelWidth`;
 
-        this._boundHandleMouseMove = this.handleMouseMove.bind(this);
+        this._boundHandleMove = this.handleMove.bind(this);
         this._boundStopResizing = this.stopResizing.bind(this);
 
         this.leftPanelWidth = 1;
@@ -46,11 +45,13 @@ class ResizableThreePanels {
      * Initialize event listeners and load stored panel widths.
      */
     init() {
-        // Start resizing for left resizer
+        // Mouse and touch event listeners for left resizer
         this.resizeBarLeft.addEventListener('mousedown', (e) => this.startResizing(e, 'left'));
+        this.resizeBarLeft.addEventListener('touchstart', (e) => this.startResizing(e, 'left'));
 
-        // Start resizing for right resizer
+        // Mouse and touch event listeners for right resizer
         this.resizeBarRight.addEventListener('mousedown', (e) => this.startResizing(e, 'right'));
+        this.resizeBarRight.addEventListener('touchstart', (e) => this.startResizing(e, 'right'));
 
         // Window resize
         window.addEventListener('resize', () => this.onWindowResize());
@@ -60,56 +61,54 @@ class ResizableThreePanels {
 
     /**
      * Disable text selection for smoother dragging experience.
-     * 
-     * @param {HTMLElement} element - The target element.
+     * * @param {HTMLElement} element - The target element.
      */
     disableSelection(element) {
-        element.style.mozUserSelect = 'none';
-        element.style.msUserSelect = 'none';
         element.style.userSelect = 'none';
     }
 
     /**
      * Enable text selection after resizing stops.
-     * 
-     * @param {HTMLElement} element - The target element.
+     * * @param {HTMLElement} element - The target element.
      */
     enableSelection(element) {
-        element.style.mozUserSelect = 'auto';
-        element.style.msUserSelect = 'auto';
         element.style.userSelect = 'auto';
     }
 
     /**
-     * Start resizing when the mouse is pressed on a resize bar.
-     * 
-     * @param {MouseEvent} e - The mouse event.
+     * Start resizing when the mouse is pressed or a touch starts.
+     * * @param {MouseEvent|TouchEvent} e - The event.
      * @param {string} resizerType - Which resizer is being used: 'left' or 'right'.
      */
     startResizing(e, resizerType) {
+        e.preventDefault(); // Prevent default browser behavior like scrolling
         this.isResizing = true;
         this.hasResized = false;
         this.currentResizer = resizerType;
-        this.lastDownX = e.clientX;
+
+        this.lastDownX = e.clientX || e.touches[0].clientX;
 
         this.disableSelection(this.leftPanel);
         this.disableSelection(this.mainPanel);
         this.disableSelection(this.rightPanel);
 
-        this.element.addEventListener('mousemove', this._boundHandleMouseMove);
+        // Add mouse and touch event listeners
+        this.element.addEventListener('mousemove', this._boundHandleMove);
         this.element.addEventListener('mouseup', this._boundStopResizing);
+        this.element.addEventListener('touchmove', this._boundHandleMove);
+        this.element.addEventListener('touchend', this._boundStopResizing);
     }
 
     /**
-     * Handle mouse movement during resizing.
+     * Handle mouse or touch movement during resizing.
      * Updates panel widths dynamically.
-     * 
-     * @param {MouseEvent} e - The mouse event.
+     * * @param {MouseEvent|TouchEvent} e - The event.
      */
-    handleMouseMove(e) {
+    handleMove(e) {
         if (!this.isResizing) return;
 
-        let offset = e.clientX - this.lastDownX;
+        let clientX = e.clientX || e.touches[0].clientX;
+        let offset = clientX - this.lastDownX;
         if (offset !== 0) this.hasResized = true;
 
         let parentWidth = this.element.offsetWidth;
@@ -124,12 +123,12 @@ class ResizableThreePanels {
             this.leftPanel.style.width = newLeftWidth + 'px';
             this.mainPanel.style.width = newMainWidth + 'px';
 
-            this.lastDownX = e.clientX;
+            this.lastDownX = clientX;
 
             this.leftPanelWidth = newLeftWidth;
-            this.mainPanelWidth = parentWidth - newLeftWidth - this.rightPanel.offsetWidth - 10;
+            this.mainPanelWidth = newMainWidth;
+            this.rightPanelWidth = parentWidth - newLeftWidth - newMainWidth - 10;
             this.onResize(this.leftPanelWidth, this.mainPanelWidth, this.rightPanelWidth);
-
 
             localStorage.setItem(this.localStorageKeyLeft, newLeftWidth);
         } else if (this.currentResizer === 'right') {
@@ -138,14 +137,14 @@ class ResizableThreePanels {
 
             if (newMainWidth < this.minWidth || newRightWidth < this.minWidth) return;
 
-            this.mainPanelWidth = newMainWidth;
-            this.rightPanelWidth = newRightWidth;
-            this.onResize(this.leftPanelWidth, this.mainPanelWidth, this.rightPanelWidth);
-
             this.mainPanel.style.width = newMainWidth + 'px';
             this.rightPanel.style.width = newRightWidth + 'px';
 
-            this.lastDownX = e.clientX;
+            this.lastDownX = clientX;
+
+            this.mainPanelWidth = newMainWidth;
+            this.rightPanelWidth = newRightWidth;
+            this.onResize(this.leftPanelWidth, this.mainPanelWidth, this.rightPanelWidth);
 
             localStorage.setItem(this.localStorageKeyMain, newMainWidth);
         }
@@ -158,8 +157,11 @@ class ResizableThreePanels {
         this.isResizing = false;
         this.currentResizer = null;
 
-        this.element.removeEventListener('mousemove', this._boundHandleMouseMove);
+        // Remove mouse and touch event listeners
+        this.element.removeEventListener('mousemove', this._boundHandleMove);
         this.element.removeEventListener('mouseup', this._boundStopResizing);
+        this.element.removeEventListener('touchmove', this._boundHandleMove);
+        this.element.removeEventListener('touchend', this._boundStopResizing);
 
         this.enableSelection(this.leftPanel);
         this.enableSelection(this.mainPanel);
@@ -168,15 +170,14 @@ class ResizableThreePanels {
 
     /**
      * Resize panels programmatically with stored or default values.
-     * 
-     * @param {string|number} savedLeftWidth - Width of the left panel (px).
+     * * @param {string|number} savedLeftWidth - Width of the left panel (px).
      * @param {string|number} savedMainWidth - Width of the main panel (px).
      */
     doResize(savedLeftWidth, savedMainWidth) {
         let parentWidth = this.element.offsetWidth;
         let leftWidth = parseInt(savedLeftWidth) || 200;
         let mainWidth = parseInt(savedMainWidth) || 400;
-        let rightWidth = parentWidth - leftWidth - mainWidth - 10; // 2 bars ~ 10px each
+        let rightWidth = parentWidth - leftWidth - mainWidth - 10;
 
         if (leftWidth < this.minWidth) leftWidth = this.minWidth;
         if (mainWidth < this.minWidth) mainWidth = this.minWidth;
@@ -195,8 +196,7 @@ class ResizableThreePanels {
 
     /**
      * Get stored left panel width from localStorage.
-     * 
-     * @returns {string} The saved left panel width in pixels.
+     * * @returns {string} The saved left panel width in pixels.
      */
     getLeftPanelWidth() {
         return localStorage.getItem(this.localStorageKeyLeft) || '200';
@@ -204,8 +204,7 @@ class ResizableThreePanels {
 
     /**
      * Get stored main panel width from localStorage.
-     * 
-     * @returns {string} The saved main panel width in pixels.
+     * * @returns {string} The saved main panel width in pixels.
      */
     getMainPanelWidth() {
         return localStorage.getItem(this.localStorageKeyMain) || '400';
@@ -229,14 +228,12 @@ class ResizableThreePanels {
     /**
      * Callback triggered when resizing occurs.
      * Can be overridden for custom behavior.
-     * 
-     * @param {number} leftPanelWidth - Current left panel width in px.
+     * * @param {number} leftPanelWidth - Current left panel width in px.
      * @param {number} mainPanelWidth - Current main panel width in px.
      * @param {number} rightPanelWidth - Current right panel width in px.
      */
-    onResize(leftPanelWidth, mainPanelWidth, rightPanelWidth)
-    {
-        
+    onResize(leftPanelWidth, mainPanelWidth, rightPanelWidth) {
+
     }
 }
 
@@ -248,8 +245,7 @@ class ResizableThreePanels {
 class ResizableVertical {
     /**
      * Create a resizable vertical split.
-     * 
-     * @param {string} selector - Parent container selector.
+     * * @param {string} selector - Parent container selector.
      * @param {string} topSelector - Selector for the top panel element.
      * @param {string} bottomSelector - Selector for the bottom panel element.
      * @param {string} resizeBarSelector - Selector for the horizontal resize bar.
@@ -265,7 +261,7 @@ class ResizableVertical {
         this.isResizing = false;
         this.lastDownY = 0;
 
-        this._boundMouseMove = this.handleMouseMove.bind(this);
+        this._boundMouseMove = this.handleMove.bind(this);
         this._boundStop = this.stopResizing.bind(this);
 
         this.init();
@@ -275,56 +271,58 @@ class ResizableVertical {
      * Initialize event listeners for vertical resizing.
      */
     init() {
+        // Add mouse and touch event listeners
         this.resizeBar.addEventListener('mousedown', (e) => this.startResizing(e));
+        this.resizeBar.addEventListener('touchstart', (e) => this.startResizing(e));
     }
 
     /**
-     * Start resizing when the mouse is pressed on the horizontal resize bar.
-     * 
-     * @param {MouseEvent} e - The mouse event.
+     * Start resizing when the mouse is pressed or a touch starts.
+     * * @param {MouseEvent|TouchEvent} e - The event.
      */
     startResizing(e) {
+        e.preventDefault(); // Prevent default browser behavior like scrolling
         this.isResizing = true;
-        this.lastDownY = e.clientY;
+        this.lastDownY = e.clientY || e.touches[0].clientY;
 
         document.addEventListener('mousemove', this._boundMouseMove);
         document.addEventListener('mouseup', this._boundStop);
+        document.addEventListener('touchmove', this._boundMouseMove);
+        document.addEventListener('touchend', this._boundStop);
 
         this.topPanel.style.userSelect = 'none';
         this.bottomPanel.style.userSelect = 'none';
     }
 
     /**
-     * Handle mouse movement during vertical resizing.
+     * Handle mouse or touch movement during vertical resizing.
      * Adjusts top and bottom panel heights dynamically.
-     * 
-     * @param {MouseEvent} e - The mouse event.
+     * * @param {MouseEvent|TouchEvent} e - The event.
      */
-    handleMouseMove(e) {
+    handleMove(e) {
         if (!this.isResizing) return;
 
-        const offset = e.clientY - this.lastDownY;
+        let clientY = e.clientY || e.touches[0].clientY;
+        const offset = clientY - this.lastDownY;
 
         let newTopHeight = this.topPanel.offsetHeight + offset;
         let newBottomHeight = this.selector.offsetHeight - newTopHeight;
 
-        if (newTopHeight < this.minHeight) 
-        {
+        if (newTopHeight < this.minHeight) {
             newTopHeight = this.minHeight;
             newBottomHeight = this.selector.offsetHeight - newTopHeight;
         }
-        if(newBottomHeight < this.minHeight)
-        {
+        if (newBottomHeight < this.minHeight) {
             newBottomHeight = this.minHeight;
             newTopHeight = this.selector.offsetHeight - newBottomHeight;
         }
 
         this.topPanel.style.height = newTopHeight + 'px';
         this.bottomPanel.style.height = newBottomHeight + 'px';
-        
+
         this.onResize(newTopHeight, newBottomHeight);
 
-        this.lastDownY = e.clientY;
+        this.lastDownY = clientY;
     }
 
     /**
@@ -334,6 +332,8 @@ class ResizableVertical {
         this.isResizing = false;
         document.removeEventListener('mousemove', this._boundMouseMove);
         document.removeEventListener('mouseup', this._boundStop);
+        document.removeEventListener('touchmove', this._boundMouseMove);
+        document.removeEventListener('touchend', this._boundStop);
 
         this.topPanel.style.userSelect = 'auto';
         this.bottomPanel.style.userSelect = 'auto';
@@ -342,12 +342,10 @@ class ResizableVertical {
     /**
      * Callback triggered when vertical resizing occurs.
      * Can be overridden for custom behavior.
-     * 
-     * @param {number} topPanelHeight - Current top panel height in px.
+     * * @param {number} topPanelHeight - Current top panel height in px.
      * @param {number} bottomPanelHeight - Current bottom panel height in px.
      */
-    onResize(topPanelHeight, bottomPanelHeight)
-    {
-        
+    onResize(topPanelHeight, bottomPanelHeight) {
+
     }
 }
