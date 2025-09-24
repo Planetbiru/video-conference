@@ -26,4 +26,5 @@ return array(
     'MagicObject\\' => array($vendorDir . '/planetbiru/magic-object/src'),
     'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
     'Evenement\\' => array($vendorDir . '/evenement/evenement/src'),
+    'Conference\\' => array($baseDir . '/Conference'),
 );

@@ -542,6 +542,45 @@ function joinRoom(roomId) {
 }
 
 /**
+ * Updates file placeholders in the chat with a blob URL created from file chunks.
+ * This function is called when a file transfer is complete or when a local file is sent.
+ * It finds the corresponding image and link elements in the DOM and sets their `src` or `href`
+ * to a newly created object URL.
+ * @param {object} msg - The file metadata message object, containing the `fileId`.
+ * @param {BlobPart[]} chunks - An array of file chunks (e.g., Uint8Array, Blob) to be assembled.
+ * @param {string} mimeType - The MIME type of the file (e.g., 'image/png').
+ */
+function updateFile(msg, chunks, mimeType)
+{
+  const blob = new Blob(chunks, {
+      type: mimeType,
+    });
+    const url = URL.createObjectURL(blob);
+    console.log(url)
+
+    const chatBox = document.getElementById("chat-box");
+    let els1 = document.querySelectorAll(
+      `.url-src[data-file-id="${msg.fileId}"]`
+    );
+    let els2 = document.querySelectorAll(
+      `.url-href[data-file-id="${msg.fileId}"]`
+    );
+    if (els1) {
+      els1.forEach((el) => {
+        el.setAttribute("src", url);
+        el.dataset.loaded = 'true';
+      });
+    }
+    if (els2) {
+      els2.forEach((el) => {
+        el.setAttribute("href", url);
+        el.dataset.loaded = 'true';
+      });
+    }
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+/**
  * Handles incoming WebSocket messages and routes them to the appropriate handler functions.
  * @param {object} msg - The parsed JSON message object from the WebSocket.
  */
@@ -559,6 +598,8 @@ async function handleOnMessage(msg)
     if (msg.type === MESSAGE_TYPE_FILE_META) {
       incomingFiles[msg.fileId] = { meta: msg, from: peerId, chunks: [] };
       putFilePlaceholder(msg);
+      requestCompletedFile();
+      requestIncompletedFile();
       return;
     }
 
@@ -594,32 +635,9 @@ async function handleOnMessage(msg)
     if (msg.type === MESSAGE_TYPE_FILE_COMPLETE) {
       const fileData = incomingFiles[msg.fileId];
       if (fileData) {
-        const blob = new Blob(fileData.chunks, {
-          type: fileData.meta.mimeType,
-        });
-        const url = URL.createObjectURL(blob);
+        updateFile(msg, fileData.chunks, fileData.mimeType);
 
-        const chatBox = document.getElementById("chat-box");
-        let els1 = document.querySelectorAll(
-          `.url-src[data-file-id="${msg.fileId}"]`
-        );
-        let els2 = document.querySelectorAll(
-          `.url-href[data-file-id="${msg.fileId}"]`
-        );
-        if (els1) {
-          els1.forEach((el) => {
-            el.setAttribute("src", url);
-            el.dataset.loaded = 'true';
-          });
-        }
-        if (els2) {
-          els2.forEach((el) => {
-            el.setAttribute("href", url);
-            el.dataset.loaded = 'true';
-          });
-        }
-
-        chatBox.scrollTop = chatBox.scrollHeight;
+        
 
         delete incomingFiles[msg.fileId];
       }
@@ -841,7 +859,10 @@ function putHistoryChat(msg) {
   }
   else if(msg.type === MESSAGE_TYPE_FILE_META)
   {
-   putFilePlaceholder(msg);
+    putFilePlaceholder(msg);
+    // Panggil fungsi proses file
+    requestCompletedFile();
+    requestIncompletedFile();
   }
 }
 
@@ -918,9 +939,7 @@ function putFilePlaceholder(msg) {
 
   chatBox.appendChild(chatContainer);
 
-  // Panggil fungsi proses file
-  requestCompletedFile();
-  requestIncompletedFile();
+
 }
 
 /** @type {boolean} Flag to track if missed files are currently being loaded. */
@@ -1786,7 +1805,11 @@ async function sendFile() {
     chunkSize: CHUNK_SIZE
   };
   socket.send(JSON.stringify(meta));
+  putFilePlaceholder(meta);
 
+
+  updateFile(meta, [file], file.type); 
+  
   let offset = 0;
   while (offset < file.size) {
     const slice = file.slice(offset, offset + CHUNK_SIZE);
@@ -1814,28 +1837,10 @@ async function sendFile() {
       type: MESSAGE_TYPE_FILE_COMPLETE,
       fileId: fileId,
       from: clientId,
-    })
+  })
   );
-
+  
   clearFile(); // reset input dan preview
-
-  // --- tampilkan di chat kita sendiri ---
-  const chatBox = document.getElementById("chat-box");
-  const div = document.createElement("div");
-  const url = URL.createObjectURL(file);
-
-  if (file.type.startsWith("image/")) {
-    div.innerHTML = `<strong>You:</strong><br>
-                        <div class="image-received">
-                          <img src="${url}" alt="${file.name}">
-                        </div>
-                        <a href="${url}" download="${file.name}">📎 ${file.name}</a>`;
-  } else {
-    div.innerHTML = `<strong>You:</strong> 
-                         <a href="${url}" download="${file.name}">📎 ${file.name}</a>`;
-  }
-
-  chatBox.appendChild(div);
 
   setTimeout(function () {
     document.querySelector(".chat-box-container").scrollTop =
