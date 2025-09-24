@@ -1029,7 +1029,7 @@ function renderNewChat(msg) {
   // Konten chat
   const content = document.createElement("div");
   content.classList.add("chat-content");
-  content.innerHTML = nl2br(escapeHtml(msg.text));
+  content.innerHTML = nl2br(escapeHtml(msg.text.trim()));
   chatContainer.appendChild(content);
 
   chatBox.appendChild(chatContainer);
