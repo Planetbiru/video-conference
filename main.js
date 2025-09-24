@@ -120,15 +120,19 @@ document.addEventListener('DOMContentLoaded', function () {
  * @param {function} [callback=null] - Optional callback executed when height changes.
  */
 function autoResizeTextarea(textarea, maxHeight = 200, callback = null) {
-    function resize() {
-        textarea.style.height = "auto"; 
-        let newHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = newHeight + "px";
+    
+    textarea.addEventListener("input", ()=>{
+        resizeTextarea(textarea, maxHeight, callback)
+    });
+    resizeTextarea(); // initial adjustment
+}
 
-        if (typeof callback === "function") {
-            callback(newHeight);
-        }
+function resizeTextarea(textarea, maxHeight, callback) {
+    textarea.style.height = "auto"; 
+    let newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = newHeight + "px";
+
+    if (typeof callback === "function") {
+        callback(newHeight);
     }
-    textarea.addEventListener("input", resize);
-    resize(); // initial adjustment
 }
