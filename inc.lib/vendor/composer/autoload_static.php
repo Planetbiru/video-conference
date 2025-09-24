@@ -145,7 +145,7 @@ class ComposerStaticInitce559b9fbd0e097bccee77e6c3cc8be1
         ),
         'Conference\\' => 
         array (
-            0 => __DIR__ . '/../..' . '/Conference',
+            0 => __DIR__ . '/../..' . '/classes/Conference',
         ),
     );
 

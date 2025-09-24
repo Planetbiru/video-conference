@@ -2,6 +2,7 @@
 
 namespace SignallingServer;
 
+use Conference\Entity\Data\PeerHistory;
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Ratchet\Http\HttpServer;
@@ -9,6 +10,8 @@ use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
 use \SplObjectStorage;
 use \Exception;
+use MagicObject\Database\PicoDatabase;
+use PDO;
 
 require __DIR__ . '/inc.lib/vendor/autoload.php';
 
@@ -52,14 +55,32 @@ class SignallingServer implements MessageComponentInterface
     protected $users;
 
     /**
-     * Constructor
+     * Undocumented variable
+     *
+     * @var callable
      */
-    public function __construct()
+    private $onOpenCallback = null;
+
+    /**
+     * Database connection
+     *
+     * @var PicoDatabase
+     */
+    private $database = null;
+
+    /**
+     * Constructor
+     * @param PicoDatabase $database
+     * @param callable $onOpenCallback
+     */
+    public function __construct($database, $onOpenCallback)
     {
         $this->clients = new SplObjectStorage;
         $this->users   = array();
+        $this->database = $database;
+        $this->onOpenCallback = $onOpenCallback;
     }
-    
+
     /**
      * Generate new unique peerId.
      *
@@ -82,6 +103,10 @@ class SignallingServer implements MessageComponentInterface
      */
     public function onOpen(ConnectionInterface $conn)
     {
+        if(isset($this->onOpenCallback) && is_callable($this->onOpenCallback))
+        {
+            call_user_func($this->onOpenCallback, $this->database, $conn);
+        }
         $uri = $conn->httpRequest->getUri();
         parse_str($uri->getQuery(), $query);
         $sessionId = isset($query['PHPSESSID']) ? $query['PHPSESSID'] : null;
@@ -91,13 +116,23 @@ class SignallingServer implements MessageComponentInterface
 
         // Save mapping: connection -> peerId, peerId -> user info
         $this->clients->attach($conn, $peerId);
-        $this->users[$peerId] = array(
+        $peer = array(
             'peerId'   => $peerId,
             'username' => isset($user['username']) ? $user['username'] : 'guest',
             'name'     => isset($user['name']) ? $user['name'] : 'Guest User',
             'session'  => $sessionId,
             'roomId'   => $roomId
         );
+        $peerHistory = new PeerHistory(null, $this->database);
+        $peerHistory->setParticipantId($peerId);
+        $peerHistory->setTimeCreate(date('Y-m-d H:i:s'));
+        $peerHistory->setChatRoomId($roomId);
+        $peerHistory->setUserName($peer['username']);
+        $peerHistory->setPeerAction('in');
+        $peerHistory->insert();
+
+
+        $this->users[$peerId] = $peer;
 
         echo "New connection! PeerId={$peerId}, Room={$roomId}, User=" . $this->users[$peerId]['username'] . "\n";
 
@@ -144,7 +179,7 @@ class SignallingServer implements MessageComponentInterface
         foreach ($lines as $line) {
             if (trim($line) !== '') {
                 $row = json_decode($line, true);
-                
+
                 // If entry is fileMeta, reload from meta JSON file
                 if ($row['type'] == 'fileMeta') {
                     $fileId = $row['fileId'];
@@ -158,7 +193,7 @@ class SignallingServer implements MessageComponentInterface
         }
         return $data;
     }
-    
+
     /**
      * Load chat events (promoteStream, demoteStream, etc.)
      * from file (event_<roomId>.txt).
@@ -366,11 +401,8 @@ class SignallingServer implements MessageComponentInterface
                 $meta['type'] = 'fileUpdate';
                 $msg = json_encode($meta);
                 $from->send($msg);
-            }
-            elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
-            }
-            else
-            {
+            } elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
+            } else {
                 // Broadcast to all peers in room
                 foreach ($this->clients as $client) {
                     $targetPeerId = $this->clients[$client];
@@ -386,7 +418,7 @@ class SignallingServer implements MessageComponentInterface
             $str = json_encode($data);
             file_put_contents(dirname(__DIR__) . "/history_" . $roomId . ".txt", $str . "\r\n", FILE_APPEND);
         }
-        
+
         // Save event to file
         if (isset($data['type']) && ($data['type'] === 'demoteStream' || $data['type'] === 'promoteStream' || $data['type'] === 'stopSharing' || $data['type'] === "streamUpdate")) {
             $str = json_encode($data);
@@ -463,14 +495,19 @@ class SignallingServer implements MessageComponentInterface
     }
 }
 
+$database = PicoDatabase::fromPdo(new PDO("sqlite:".dirname(__DIR__)."/database.db"));
+
 // Run server (port 3000)
 $server = IoServer::factory(
     new HttpServer(
         new WsServer(
-            new SignallingServer()
+            new SignallingServer($database, function($database, $conn){
+
+            })
         )
     ),
-    3000
+    3000,
+    "0.0.0.0"
 );
 
 $server->run();

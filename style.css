@@ -236,17 +236,17 @@ a {
 }
 .root-container .left-panel ul {
   list-style: none;
-  padding: 10px;
+  padding: 8px;
   margin: 0;
 }
 .root-container .left-panel ul li {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 .root-container .left-panel ul li a {
   background-color: #EEEEEE;
   border-radius: 3px;
   display: block;
-  padding: 5px 10px;
+  padding: 5px 8px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
