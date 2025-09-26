@@ -118,6 +118,32 @@ node server.js
 * The signaling server can be implemented in **PHP** or **Node.js**.
 * Tested on **Chrome** and **Firefox**. Mobile support requires `playsinline` for autoplay.
 
+## Using PHP (Apache Proxy)
+
+If you are using PHP and want to deploy the application online with Apache, you need to set up a proxy for the WebSocket server.
+
+* Make sure these Apache modules are enabled:
+* LoadModule proxy_module modules/mod_proxy.so
+* LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so
+
+## Add Apache Configuration
+
+Add the following configuration to your Apache virtual host file (e.g., `httpd.conf` or a site-specific config) so that clients can access the WebSocket with the same base URL (same domain and port number). This is necessary for modern browsers to avoid violating CORS.
+
+```
+<VirtualHost *:80>
+    ServerName domain.tld
+    DocumentRoot "/var/www/html"
+
+    # Proxy untuk WebSocket
+    ProxyPass "/ws/"  "ws://localhost:3000/ws/"
+    ProxyPassReverse "/ws/"  "ws://localhost:3000/ws/"
+</VirtualHost>
+```
+
+
+From the example above, every request to `http://domain.tld/ws/` will be redirected to `ws://localhost:3000/ws/` by the Apache server. This is the easiest way when you don’t have an SSL certificate. You can use services like Cloudflare and similar ones. Use a proxy so that clients can access both your website and your WebSocket using the SSL certificate.
+
 ---
 
 ## License
