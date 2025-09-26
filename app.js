@@ -31,7 +31,13 @@ const peerConfiguration = {
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" }
+    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: "stun:stun.ekiga.net" },
+    { urls: "stun:stun.ideasip.com" },
+    { urls: "stun:stun.rixtelecom.se" },
+    { urls: "stun:stun.schlund.de" },
+    { urls: "stun:stun.stunprotocol.org:3478" },
+    { urls: "stun:stun.voiparound.com" },
   ]
 };
 
@@ -361,10 +367,10 @@ async function stopMicrophone() {
     audioTracks.forEach((track) => {
       try {
         track.stop();
-      } catch (_) {}
+      } catch (_) { }
       try {
         localStream.removeTrack(track);
-      } catch (_) {}
+      } catch (_) { }
     });
   }
 
@@ -498,7 +504,7 @@ async function removeAudioSendersFromPeers() {
       for (const s of audioSenders) {
         try {
           pc.removeTrack(s);
-        } catch (_) {}
+        } catch (_) { }
       }
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
@@ -542,254 +548,265 @@ function joinRoom(roomId) {
 }
 
 /**
+ * Updates file placeholders in the chat with a blob URL created from file chunks.
+ * This function is called when a file transfer is complete or when a local file is sent.
+ * It finds the corresponding image and link elements in the DOM and sets their `src` or `href`
+ * to a newly created object URL.
+ * @param {object} msg - The file metadata message object, containing the `fileId`.
+ * @param {BlobPart[]} chunks - An array of file chunks (e.g., Uint8Array, Blob) to be assembled.
+ * @param {string} mimeType - The MIME type of the file (e.g., 'image/png').
+ */
+function updateFile(msg, chunks, mimeType) {
+  const blob = new Blob(chunks, {
+    type: mimeType,
+  });
+  const url = URL.createObjectURL(blob);
+
+  const chatBox = document.getElementById("chat-box");
+  let els1 = document.querySelectorAll(
+    `.url-src[data-file-id="${msg.fileId}"]`
+  );
+  let els2 = document.querySelectorAll(
+    `.url-href[data-file-id="${msg.fileId}"]`
+  );
+  if (els1) {
+    els1.forEach((el) => {
+      el.setAttribute("src", url);
+      el.dataset.loaded = 'true';
+    });
+  }
+  if (els2) {
+    els2.forEach((el) => {
+      el.setAttribute("href", url);
+      el.dataset.loaded = 'true';
+    });
+  }
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+/**
  * Handles incoming WebSocket messages and routes them to the appropriate handler functions.
  * @param {object} msg - The parsed JSON message object from the WebSocket.
  */
-async function handleOnMessage(msg)
-{
+async function handleOnMessage(msg) {
   let peerId = msg.from;
 
-    // chat
-    if (msg.type === MESSAGE_TYPE_CHAT) {
-      renderNewChat(msg);
-      return;
-    }
+  // chat
+  if (msg.type === MESSAGE_TYPE_CHAT) {
+    renderNewChat(msg);
+    return;
+  }
 
-    // --- handler pesan ---
-    if (msg.type === MESSAGE_TYPE_FILE_META) {
-      incomingFiles[msg.fileId] = { meta: msg, from: peerId, chunks: [] };
-      putFilePlaceholder(msg);
-      return;
-    }
+  // --- handler pesan ---
+  if (msg.type === MESSAGE_TYPE_FILE_META) {
+    incomingFiles[msg.fileId] = { meta: msg, from: peerId, chunks: [] };
+    putFilePlaceholder(msg);
+    requestCompletedFile();
+    requestIncompletedFile();
+    return;
+  }
 
-    if(msg.type === MESSAGE_TYPE_FILE_UPDATE)
-    {
-      if(msg.complete)
-      {
-        let elements = document.querySelectorAll(`.url-href[data-file-id="${msg.fileId}"]`);
-        if(elements)
-        {
-          elements.forEach(element=>{
-           element.dataset.complete = 'true';
-          });
-        }
-        requestCompletedFile();
-      }
-      return;
-    }
-    if (msg.type === MESSAGE_TYPE_FILE_CHUNK) {
-      const fileData = incomingFiles[msg.fileId];
-      if (fileData) {
-        const byteChars = atob(msg.data);
-        const byteNumbers = new Array(byteChars.length);
-        for (let i = 0; i < byteChars.length; i++) {
-          byteNumbers[i] = byteChars.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-
-        fileData.chunks.push(byteArray);
-      }
-      return;
-    }
-    if (msg.type === MESSAGE_TYPE_FILE_COMPLETE) {
-      const fileData = incomingFiles[msg.fileId];
-      if (fileData) {
-        const blob = new Blob(fileData.chunks, {
-          type: fileData.meta.mimeType,
+  if (msg.type === MESSAGE_TYPE_FILE_UPDATE) {
+    if (msg.complete) {
+      let elements = document.querySelectorAll(`.url-href[data-file-id="${msg.fileId}"]`);
+      if (elements) {
+        elements.forEach(element => {
+          element.dataset.complete = 'true';
         });
-        const url = URL.createObjectURL(blob);
+      }
+      requestCompletedFile();
+    }
+    return;
+  }
+  if (msg.type === MESSAGE_TYPE_FILE_CHUNK) {
+    const fileData = incomingFiles[msg.fileId];
+    if (fileData) {
+      const byteChars = atob(msg.data);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteNumbers[i] = byteChars.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
 
-        const chatBox = document.getElementById("chat-box");
-        let els1 = document.querySelectorAll(
-          `.url-src[data-file-id="${msg.fileId}"]`
+      fileData.chunks.push(byteArray);
+    }
+    return;
+  }
+  if (msg.type === MESSAGE_TYPE_FILE_COMPLETE) {
+    const fileData = incomingFiles[msg.fileId];
+    if (fileData) {
+      updateFile(msg, fileData.chunks, fileData.mimeType);
+
+
+
+      delete incomingFiles[msg.fileId];
+    }
+    return;
+  }
+
+  // chatHistory
+  if (msg.type === MESSAGE_TYPE_CHAT_HISTORY) {
+    putChatHistory(msg.chatHistory);
+    loadMissedFiles();
+    return;
+  }
+
+  // chatEvent
+  if (msg.type === MESSAGE_TYPE_CHAT_EVENT) {
+    if (msg.chatEvent) {
+      msg.chatEvent.forEach(evt => handleOnMessage(evt));
+    }
+    return;
+  }
+
+  if (msg.type === MESSAGE_TYPE_PROMOTE_STREAM) {
+    document.querySelector("#promoteBtn").classList.remove(CLASS_SHARING);
+    const selected = document.querySelector(
+      `input[name="mainStreamSelector"][value="${msg.from}"]`
+    );
+    if (!selected) {
+      console.error("Please select a stream first");
+      return;
+    }
+    selected.checked = true;
+    const idToPromote =
+      selected.value === "local" ? clientId : selected.value;
+    // locally attach immediately (if ready) and then broadcast to ask others to show same main
+    switchStreamTo(idToPromote);
+    return;
+  }
+
+  if (msg.type === MESSAGE_TYPE_DEMOTE_STREAM) {
+    const selected = document.querySelector(
+      `input[name="mainStreamSelector"][value="local"]`
+    );
+    if (!selected) {
+      console.error("Please select a stream first");
+      return;
+    }
+    selected.checked = true;
+    const idToPromote =
+      selected.value === "local" ? clientId : selected.value;
+    // locally attach immediately (if ready) and then broadcast to ask others to show same main
+    switchStreamTo(idToPromote);
+    return;
+  }
+
+  // streamUpdate -> ensure placeholder and attempt to promote if requested
+  if (msg.type === MESSAGE_TYPE_STREAM_UPDATE) {
+    ensureRemoteVideoElement(msg.from); // create placeholder if not exists
+    // If radio/selection points to this peer, try attaching after ready
+    const selected = document.querySelector(
+      'input[name="mainStreamSelector"]:checked'
+    );
+    if (selected && selected.value === msg.from) {
+      waitAndAttachToMain(msg.from);
+    }
+    return;
+  }
+  // stopSharing -> update placeholder
+  if (msg.type === MESSAGE_TYPE_STOP_SHARING) {
+    console.log(`Received stopSharing from peer: ${msg.from}`);
+    let wrapper = document.querySelector(
+      `.video-wrapper[data-peer-id="${msg.from}"]`
+    );
+    if (wrapper) {
+      let video = wrapper.querySelector("video");
+      if (video) {
+        // clear stream
+        video.srcObject = null;
+        // optional: give black background
+        video.style.backgroundColor = "black";
+      }
+    }
+    return;
+  }
+
+  // ignore messages not for us (unless broadcast)
+  if (msg.to && msg.to !== clientId) return;
+
+  if (msg.type === MESSAGE_TYPE_PEERS) {
+    clientId = msg.myId;
+    if (promoteBtn) promoteBtn.disabled = false;
+
+    // create placeholder for each peer (UI ready)
+    msg.peers.forEach((peerId) => ensureRemoteVideoElement(peerId));
+
+    // create offers to peers based on glare avoidance
+    msg.peers.forEach((peerId) => {
+      if (clientId < peerId) createOffer(peerId);
+    });
+    return;
+  }
+
+  if (msg.type === MESSAGE_TYPE_NEW_PEAR) {
+    ensureRemoteVideoElement(msg.peerId);
+    updatePeer(msg.peerId, msg.peerDetail);
+    // create offer if our ID is smaller (simple glare avoidance)
+    if (clientId < msg.peerId) createOffer(msg.peerId);
+    return;
+  }
+
+  if (msg.type === MESSAGE_TYPE_OFFER) {
+    const pc = createPeer(msg.from);
+    await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    socket.send(
+      JSON.stringify({
+        type: MESSAGE_TYPE_ANSWER,
+        answer,
+        to: msg.from,
+        from: clientId,
+      })
+    );
+    return;
+  }
+
+  if (msg.type === MESSAGE_TYPE_ANSWER) {
+    if (peers[msg.from]) {
+      await peers[msg.from].setRemoteDescription(
+        new RTCSessionDescription(msg.answer)
+      );
+    }
+    return;
+  }
+
+  if (msg.type === MESSAGE_TYPE_CANDIDATE) {
+    if (peers[msg.from]) {
+      try {
+        await peers[msg.from].addIceCandidate(
+          new RTCIceCandidate(msg.candidate)
         );
-        let els2 = document.querySelectorAll(
-          `.url-href[data-file-id="${msg.fileId}"]`
-        );
-        if (els1) {
-          els1.forEach((el) => {
-            el.setAttribute("src", url);
-            el.dataset.loaded = 'true';
-          });
-        }
-        if (els2) {
-          els2.forEach((el) => {
-            el.setAttribute("href", url);
-            el.dataset.loaded = 'true';
-          });
-        }
-
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        delete incomingFiles[msg.fileId];
+      } catch (e) {
+        console.warn("addIceCandidate failed", e);
       }
-      return;
     }
+    return;
+  }
 
-    // chatHistory
-    if (msg.type === MESSAGE_TYPE_CHAT_HISTORY) {
-      putChatHistory(msg.chatHistory);
-      loadMissedFiles();
-      return;
+  if (msg.type === MESSAGE_TYPE_PEAR_LEAVE) {
+    if (peers[msg.peerId]) {
+      peers[msg.peerId].close();
+      delete peers[msg.peerId];
+      delete peerDetails[msg.peerId];
     }
-    
-    // chatEvent
-    if (msg.type === MESSAGE_TYPE_CHAT_EVENT) {
-      if(msg.chatEvent)
-      {
-        msg.chatEvent.forEach(evt => handleOnMessage(evt));
-      }
-      return;
+    if (remoteVideos[msg.peerId]) {
+      remoteVideos[msg.peerId].wrapper.remove();
+      delete remoteVideos[msg.peerId];
     }
-
-    if (msg.type === MESSAGE_TYPE_PROMOTE_STREAM) {
-      document.querySelector("#promoteBtn").classList.remove(CLASS_SHARING);
-      const selected = document.querySelector(
-        `input[name="mainStreamSelector"][value="${msg.from}"]`
-      );
-      if (!selected) {
-        console.error("Please select a stream first");
-        return;
-      }
-      selected.checked = true;
-      const idToPromote =
-        selected.value === "local" ? clientId : selected.value;
-      // locally attach immediately (if ready) and then broadcast to ask others to show same main
-      switchStreamTo(idToPromote);
-      return;
+    // fallback mainScreen to local if the promoted one disappears
+    if (
+      mainScreen.srcObject &&
+      isSameStream(
+        mainScreen.srcObject,
+        remoteVideos[msg.peerId]?.video?.srcObject
+      )
+    ) {
+      setMainScreenStream(localStream || null);
     }
-
-    if (msg.type === MESSAGE_TYPE_DEMOTE_STREAM) {
-      const selected = document.querySelector(
-        `input[name="mainStreamSelector"][value="local"]`
-      );
-      if (!selected) {
-        console.error("Please select a stream first");
-        return;
-      }
-      selected.checked = true;
-      const idToPromote =
-        selected.value === "local" ? clientId : selected.value;
-      // locally attach immediately (if ready) and then broadcast to ask others to show same main
-      switchStreamTo(idToPromote);
-      return;
-    }
-
-    // streamUpdate -> ensure placeholder and attempt to promote if requested
-    if (msg.type === MESSAGE_TYPE_STREAM_UPDATE) {
-      ensureRemoteVideoElement(msg.from); // create placeholder if not exists
-      // If radio/selection points to this peer, try attaching after ready
-      const selected = document.querySelector(
-        'input[name="mainStreamSelector"]:checked'
-      );
-      if (selected && selected.value === msg.from) {
-        waitAndAttachToMain(msg.from);
-      }
-      return;
-    }
-    // stopSharing -> update placeholder
-    if (msg.type === MESSAGE_TYPE_STOP_SHARING) {
-      console.log(`Received stopSharing from peer: ${msg.from}`);
-      let wrapper = document.querySelector(
-        `.video-wrapper[data-peer-id="${msg.from}"]`
-      );
-      if (wrapper) {
-        let video = wrapper.querySelector("video");
-        if (video) {
-          // clear stream
-          video.srcObject = null;
-          // optional: give black background
-          video.style.backgroundColor = "black";
-        }
-      }
-      return;
-    }
-
-    // ignore messages not for us (unless broadcast)
-    if (msg.to && msg.to !== clientId) return;
-
-    if (msg.type === MESSAGE_TYPE_PEERS) {
-      clientId = msg.myId;
-      if (promoteBtn) promoteBtn.disabled = false;
-
-      // create placeholder for each peer (UI ready)
-      msg.peers.forEach((peerId) => ensureRemoteVideoElement(peerId));
-
-      // create offers to peers based on glare avoidance
-      msg.peers.forEach((peerId) => {
-        if (clientId < peerId) createOffer(peerId);
-      });
-      return;
-    }
-
-    if (msg.type === MESSAGE_TYPE_NEW_PEAR) {
-      ensureRemoteVideoElement(msg.peerId);
-      updatePeer(msg.peerId, msg.peerDetail);
-      // create offer if our ID is smaller (simple glare avoidance)
-      if (clientId < msg.peerId) createOffer(msg.peerId);
-      return;
-    }
-
-    if (msg.type === MESSAGE_TYPE_OFFER) {
-      const pc = createPeer(msg.from);
-      await pc.setRemoteDescription(new RTCSessionDescription(msg.offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.send(
-        JSON.stringify({
-          type: MESSAGE_TYPE_ANSWER,
-          answer,
-          to: msg.from,
-          from: clientId,
-        })
-      );
-      return;
-    }
-
-    if (msg.type === MESSAGE_TYPE_ANSWER) {
-      if (peers[msg.from]) {
-        await peers[msg.from].setRemoteDescription(
-          new RTCSessionDescription(msg.answer)
-        );
-      }
-      return;
-    }
-
-    if (msg.type === MESSAGE_TYPE_CANDIDATE) {
-      if (peers[msg.from]) {
-        try {
-          await peers[msg.from].addIceCandidate(
-            new RTCIceCandidate(msg.candidate)
-          );
-        } catch (e) {
-          console.warn("addIceCandidate failed", e);
-        }
-      }
-      return;
-    }
-
-    if (msg.type === MESSAGE_TYPE_PEAR_LEAVE) {
-      if (peers[msg.peerId]) {
-        peers[msg.peerId].close();
-        delete peers[msg.peerId];
-        delete peerDetails[msg.peerId];
-      }
-      if (remoteVideos[msg.peerId]) {
-        remoteVideos[msg.peerId].wrapper.remove();
-        delete remoteVideos[msg.peerId];
-      }
-      // fallback mainScreen to local if the promoted one disappears
-      if (
-        mainScreen.srcObject &&
-        isSameStream(
-          mainScreen.srcObject,
-          remoteVideos[msg.peerId]?.video?.srcObject
-        )
-      ) {
-        setMainScreenStream(localStream || null);
-      }
-      return;
-    }
+    return;
+  }
 }
 
 /**
@@ -803,9 +820,7 @@ function connectSocket(roomId) {
   socketUrl = `${wsProtocol}://${wsHost}:${wsPort}?roomId=${encodeURIComponent(
     roomId
   )}`;
-
   socket = new WebSocket(socketUrl);
-
   socket.onopen = () => {
     setupLocalVideo();
     requestChatHistory();
@@ -818,7 +833,7 @@ function connectSocket(roomId) {
 
   socket.onclose = () => {
     console.warn("Socket closed. Reconnecting...");
-    setTimeout(()=>{
+    setTimeout(() => {
       connectSocket(currentRoomId);
     }, reconnectInterval);
   };
@@ -834,14 +849,15 @@ function connectSocket(roomId) {
  * @param {object} msg - The message object from history.
  */
 function putHistoryChat(msg) {
- 
-  if(msg.type === MESSAGE_TYPE_CHAT)
-  {
+
+  if (msg.type === MESSAGE_TYPE_CHAT) {
     renderNewChat(msg);
   }
-  else if(msg.type === MESSAGE_TYPE_FILE_META)
-  {
-   putFilePlaceholder(msg);
+  else if (msg.type === MESSAGE_TYPE_FILE_META) {
+    putFilePlaceholder(msg);
+    // Panggil fungsi proses file
+    requestCompletedFile();
+    requestIncompletedFile();
   }
 }
 
@@ -852,17 +868,16 @@ function putHistoryChat(msg) {
 function putFilePlaceholder(msg) {
 
   let fileId = msg.fileId;
-  if(document.querySelector(`.url-src[data-file-id="${fileId}"]`))
-  {
+  if (document.querySelector(`.url-src[data-file-id="${fileId}"]`)) {
     return;
   }
 
   const chatBox = document.getElementById("chat-box");
-    // Container utama chat
+  // Container utama chat
   const chatContainer = document.createElement("div");
   chatContainer.classList.add("chat-container");
-  
-    // Header pengirim
+
+  // Header pengirim
   const header = document.createElement("div");
   header.classList.add('chat-sender');
   header.textContent = `${msg.from}`;
@@ -907,20 +922,18 @@ function putFilePlaceholder(msg) {
   link.dataset.complete = complete;
   link.dataset.loaded = "false";
   link.dataset.process = "false";
-  link.textContent = `📎 ${msg.name}`;
+  link.innerHTML = `<i class="fa fa-download"></i> ${msg.name}`;
   let fileNameContainer = document.createElement("div");
   fileNameContainer.classList.add("file-name-container");
   fileNameContainer.appendChild(link);
 
   fileContainer.appendChild(fileNameContainer);
-  
+
   chatContainer.appendChild(fileContainer);
 
   chatBox.appendChild(chatContainer);
 
-  // Panggil fungsi proses file
-  requestCompletedFile();
-  requestIncompletedFile();
+
 }
 
 /** @type {boolean} Flag to track if missed files are currently being loaded. */
@@ -931,14 +944,12 @@ let isMissedFilesLoaded = false;
  * It requests completed files once and then polls for incompleted files periodically.
  * This function ensures it only runs one process at a time.
  */
-function loadMissedFiles()
-{
-  if(isMissedFilesLoaded)
-  {
+function loadMissedFiles() {
+  if (isMissedFilesLoaded) {
     return;
   }
   requestCompletedFile();
-  checkInterval = setInterval(()=>{
+  checkInterval = setInterval(() => {
     requestIncompletedFile();
   }, 5000);
   isMissedFilesLoaded = true;
@@ -950,19 +961,16 @@ let checkInterval = setInterval('', 100000);
 /**
  * Periodically requests updates for files that are marked as incomplete and not yet loaded.
  */
-function requestIncompletedFile()
-{
+function requestIncompletedFile() {
   let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="false"][data-loaded="false"][data-process="false"]');
-  if(elements)
-  {
-    elements.forEach(file=>{
+  if (elements) {
+    elements.forEach(file => {
       socket.send(
-        JSON.stringify({ type: MESSAGE_TYPE_FILE_UPDATE, from: clientId, fileId: file.dataset.fileId})
+        JSON.stringify({ type: MESSAGE_TYPE_FILE_UPDATE, from: clientId, fileId: file.dataset.fileId })
       );
     });
   }
-  else
-  {
+  else {
     clearTimeout(checkInterval);
     isMissedFilesLoaded = false;
   }
@@ -971,14 +979,12 @@ function requestIncompletedFile()
 /**
  * Requests the content of files that are marked as complete but have not been loaded yet.
  */
-function requestCompletedFile()
-{
+function requestCompletedFile() {
   let elements = document.querySelectorAll('.url-href[data-realtime="false"][data-complete="true"][data-loaded="false"][data-process="false"]');
-  if(elements)
-  {
-    elements.forEach(element=>{
+  if (elements) {
+    elements.forEach(element => {
       socket.send(
-        JSON.stringify({ type: MESSAGE_TYPE_FILE_REQUEST, from: clientId, fileId: element.dataset.fileId})
+        JSON.stringify({ type: MESSAGE_TYPE_FILE_REQUEST, from: clientId, fileId: element.dataset.fileId })
       );
       element.dataset.process = 'true';
     });
@@ -991,12 +997,12 @@ function requestCompletedFile()
  * @returns {string} The escaped string.
  */
 function escapeHtml(str) {
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 /**
@@ -1004,8 +1010,7 @@ function escapeHtml(str) {
  * @param {string} text - The text to process.
  * @returns {string} The text with newlines converted to <br> tags.
  */
-function nl2br(text)
-{
+function nl2br(text) {
   return text.replace(/\n/g, "<br>");
 }
 
@@ -1029,7 +1034,7 @@ function renderNewChat(msg) {
   // Konten chat
   const content = document.createElement("div");
   content.classList.add("chat-content");
-  content.innerHTML = nl2br(escapeHtml(msg.text));
+  content.innerHTML = nl2br(escapeHtml(msg.text.trim()));
   chatContainer.appendChild(content);
 
   chatBox.appendChild(chatContainer);
@@ -1236,10 +1241,9 @@ function createPeer(id) {
  */
 function onIceReady(peerId, connection) {
   console.log("ICE is ready for peer:", peerId);
-  
+
   // Call it once
-  if(!eventHistoryCalled)
-  {
+  if (!eventHistoryCalled) {
     requestChatEvent();
     eventHistoryCalled = true;
   }
@@ -1270,7 +1274,6 @@ function ensureRemoteVideoElement(peerId) {
   const videoWrapper = document.createElement("div");
   videoWrapper.className = "video-wrapper";
   videoWrapper.dataset.peerId = peerId;
-  videoWrapper.style.minWidth = "160px";
 
   const remoteVideo = document.createElement("video");
   remoteVideo.autoplay = true;
@@ -1505,7 +1508,7 @@ async function replaceOrAddTracksToPeers(stream) {
             // If replace fails, remove and add
             try {
               pc.removeTrack(sender);
-            } catch (_) {}
+            } catch (_) { }
             pc.addTrack(track, stream);
           }
         } else {
@@ -1787,6 +1790,10 @@ async function sendFile() {
     chunkSize: CHUNK_SIZE
   };
   socket.send(JSON.stringify(meta));
+  putFilePlaceholder(meta);
+
+
+  updateFile(meta, [file], file.type);
 
   let offset = 0;
   while (offset < file.size) {
@@ -1819,24 +1826,6 @@ async function sendFile() {
   );
 
   clearFile(); // reset input dan preview
-
-  // --- tampilkan di chat kita sendiri ---
-  const chatBox = document.getElementById("chat-box");
-  const div = document.createElement("div");
-  const url = URL.createObjectURL(file);
-
-  if (file.type.startsWith("image/")) {
-    div.innerHTML = `<strong>You:</strong><br>
-                        <div class="image-received">
-                          <img src="${url}" alt="${file.name}">
-                        </div>
-                        <a href="${url}" download="${file.name}">📎 ${file.name}</a>`;
-  } else {
-    div.innerHTML = `<strong>You:</strong> 
-                         <a href="${url}" download="${file.name}">📎 ${file.name}</a>`;
-  }
-
-  chatBox.appendChild(div);
 
   setTimeout(function () {
     document.querySelector(".chat-box-container").scrollTop =
@@ -1913,26 +1902,26 @@ function clearFile() {
  * @returns {string} A unique ID string.
  */
 function generateNewId() {
-    // mirip uniqid() di PHP → pakai timestamp dalam milidetik (hex string)
-    let uuid = Date.now().toString(16);
+  // mirip uniqid() di PHP → pakai timestamp dalam milidetik (hex string)
+  let uuid = Date.now().toString(16);
 
-    // kalau panjang hex ganjil → tambahkan '0' di depan
-    if (uuid.length % 2 === 1) {
-        uuid = '0' + uuid;
-    }
+  // kalau panjang hex ganjil → tambahkan '0' di depan
+  if (uuid.length % 2 === 1) {
+    uuid = '0' + uuid;
+  }
 
-    // random hex 6 digit (0 sampai FFFFFF)
-    const random = Math.floor(Math.random() * 0xFFFFFF)
-        .toString(16)
-        .padStart(6, '0');
+  // random hex 6 digit (0 sampai FFFFFF)
+  const random = Math.floor(Math.random() * 0xFFFFFF)
+    .toString(16)
+    .padStart(6, '0');
 
-    // gabungkan
-    return uuid + random;
+  // gabungkan
+  return uuid + random;
 }
 
 /**
  * DOMContentLoaded event listener to initialize the WebSocket connection.
  */
-document.addEventListener('DOMContentLoaded', ()=>{
+document.addEventListener('DOMContentLoaded', () => {
   connectSocket(currentRoomId);
 });

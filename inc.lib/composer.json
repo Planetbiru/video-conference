@@ -1,4 +1,9 @@
 {
+    "autoload": {
+        "psr-4": {
+            "Conference\\": "classes/Conference/"
+        }
+    },
     "require": {
         "cboden/ratchet": "^0.4.4",
         "planetbiru/magic-object": "^3.19"

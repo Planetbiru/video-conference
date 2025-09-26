@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
         '.right-panel',          // Right panel (chat)
         '.resize-bar-left',      // Resize bar between left and main
         '.resize-bar-right',     // Resize bar between main and right
-        120                      // Minimum width for panels (px)
+        80                      // Minimum width for panels (px)
     );
 
     horizontalResizablePanels = new ResizableVertical(
@@ -120,15 +120,19 @@ document.addEventListener('DOMContentLoaded', function () {
  * @param {function} [callback=null] - Optional callback executed when height changes.
  */
 function autoResizeTextarea(textarea, maxHeight = 200, callback = null) {
-    function resize() {
-        textarea.style.height = "auto"; 
-        let newHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = newHeight + "px";
+    
+    textarea.addEventListener("input", ()=>{
+        resizeTextarea(textarea, maxHeight, callback)
+    });
+    resizeTextarea(textarea, maxHeight, callback); // initial adjustment
+}
 
-        if (typeof callback === "function") {
-            callback(newHeight);
-        }
+function resizeTextarea(textarea, maxHeight, callback) {
+    textarea.style.height = "auto"; 
+    let newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = newHeight + "px";
+
+    if (typeof callback === "function") {
+        callback(newHeight);
     }
-    textarea.addEventListener("input", resize);
-    resize(); // initial adjustment
 }

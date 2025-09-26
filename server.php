@@ -2,6 +2,7 @@
 
 namespace SignallingServer;
 
+use Conference\Entity\Data\PeerHistory;
 use Ratchet\MessageComponentInterface;
 use Ratchet\ConnectionInterface;
 use Ratchet\Http\HttpServer;
@@ -9,6 +10,8 @@ use Ratchet\Server\IoServer;
 use Ratchet\WebSocket\WsServer;
 use \SplObjectStorage;
 use \Exception;
+use MagicObject\Database\PicoDatabase;
+use PDO;
 
 require __DIR__ . '/inc.lib/vendor/autoload.php';
 
@@ -52,14 +55,32 @@ class SignallingServer implements MessageComponentInterface
     protected $users;
 
     /**
-     * Constructor
+     * Undocumented variable
+     *
+     * @var callable
      */
-    public function __construct()
+    private $onOpenCallback = null;
+
+    /**
+     * Database connection
+     *
+     * @var PicoDatabase
+     */
+    private $database = null;
+
+    /**
+     * Constructor
+     * @param PicoDatabase $database
+     * @param callable $onOpenCallback
+     */
+    public function __construct($database, $onOpenCallback)
     {
         $this->clients = new SplObjectStorage;
         $this->users   = array();
+        $this->database = $database;
+        $this->onOpenCallback = $onOpenCallback;
     }
-    
+
     /**
      * Generate new unique peerId.
      *
@@ -74,6 +95,42 @@ class SignallingServer implements MessageComponentInterface
         $random = sprintf('%06x', mt_rand(0, 16777215));
         return sprintf('%s%s', $uuid, $random);
     }
+    
+    /**
+     * Save a new peer activity record into the database.
+     *
+     * This method creates a new `PeerHistory` entry that stores
+     * information about a participant’s action inside a chat room.
+     * 
+     * Typical actions can be: `join`, `leave`, `mute`, `unmute`, 
+     * `share_screen`, etc. The history can then be used for auditing
+     * or debugging purposes.
+     *
+     * @param string $peerId   Unique identifier of the peer/participant
+     * @param string $username Display name of the participant
+     * @param string $roomId   Identifier of the chat room the peer is in
+     * @param string $action   Action performed by the peer (e.g., "join", "leave")
+     *
+     * @return PeerHistory|null Returns the created PeerHistory object if successful,
+     *                          or null if no database connection is available
+     */
+    public function savePeerHistory($peerId, $username, $roomId, $action)
+    {
+        if($this->database != null)
+        {
+            $peerHistory = new PeerHistory(null, $this->database);
+        
+            $peerHistory->setParticipantId($peerId);
+            $peerHistory->setUserName($username);
+            $peerHistory->setChatRoomId($roomId);
+
+            $peerHistory->setTimeCreate(date('Y-m-d H:i:s'));
+            $peerHistory->setPeerAction($action);
+            $peerHistory->insert();
+            return $peerHistory;
+        }
+        return null;
+    }
 
     /**
      * Handle new WebSocket connection.
@@ -82,6 +139,10 @@ class SignallingServer implements MessageComponentInterface
      */
     public function onOpen(ConnectionInterface $conn)
     {
+        if(isset($this->onOpenCallback) && is_callable($this->onOpenCallback))
+        {
+            call_user_func($this->onOpenCallback, $this->database, $conn);
+        }
         $uri = $conn->httpRequest->getUri();
         parse_str($uri->getQuery(), $query);
         $sessionId = isset($query['PHPSESSID']) ? $query['PHPSESSID'] : null;
@@ -91,13 +152,16 @@ class SignallingServer implements MessageComponentInterface
 
         // Save mapping: connection -> peerId, peerId -> user info
         $this->clients->attach($conn, $peerId);
-        $this->users[$peerId] = array(
+        $peer = array(
             'peerId'   => $peerId,
             'username' => isset($user['username']) ? $user['username'] : 'guest',
             'name'     => isset($user['name']) ? $user['name'] : 'Guest User',
             'session'  => $sessionId,
             'roomId'   => $roomId
         );
+        $this->savePeerHistory($peer, $peer['username'], $roomId, 'join');
+
+        $this->users[$peerId] = $peer;
 
         echo "New connection! PeerId={$peerId}, Room={$roomId}, User=" . $this->users[$peerId]['username'] . "\n";
 
@@ -144,7 +208,7 @@ class SignallingServer implements MessageComponentInterface
         foreach ($lines as $line) {
             if (trim($line) !== '') {
                 $row = json_decode($line, true);
-                
+
                 // If entry is fileMeta, reload from meta JSON file
                 if ($row['type'] == 'fileMeta') {
                     $fileId = $row['fileId'];
@@ -158,7 +222,7 @@ class SignallingServer implements MessageComponentInterface
         }
         return $data;
     }
-    
+
     /**
      * Load chat events (promoteStream, demoteStream, etc.)
      * from file (event_<roomId>.txt).
@@ -366,11 +430,8 @@ class SignallingServer implements MessageComponentInterface
                 $meta['type'] = 'fileUpdate';
                 $msg = json_encode($meta);
                 $from->send($msg);
-            }
-            elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
-            }
-            else
-            {
+            } elseif (isset($data['type']) && $data['type'] === 'fileRequest') {
+            } else {
                 // Broadcast to all peers in room
                 foreach ($this->clients as $client) {
                     $targetPeerId = $this->clients[$client];
@@ -386,7 +447,7 @@ class SignallingServer implements MessageComponentInterface
             $str = json_encode($data);
             file_put_contents(dirname(__DIR__) . "/history_" . $roomId . ".txt", $str . "\r\n", FILE_APPEND);
         }
-        
+
         // Save event to file
         if (isset($data['type']) && ($data['type'] === 'demoteStream' || $data['type'] === 'promoteStream' || $data['type'] === 'stopSharing' || $data['type'] === "streamUpdate")) {
             $str = json_encode($data);
@@ -410,7 +471,6 @@ class SignallingServer implements MessageComponentInterface
         $this->clients->detach($conn);
         unset($this->users[$peerId]);
 
-        // Broadcast leave ke semua peer di room yang sama
         foreach ($this->clients as $client) {
             $targetPeerId = $this->clients[$client];
             if ($this->users[$targetPeerId]['roomId'] === $roomId) {
@@ -418,6 +478,7 @@ class SignallingServer implements MessageComponentInterface
                     'type'   => 'peerLeave',
                     'peerId' => $peerId
                 )));
+                $this->savePeerHistory($peerId, null, $roomId, 'leave');
             }
         }
     }
@@ -462,15 +523,49 @@ class SignallingServer implements MessageComponentInterface
         return array();
     }
 }
+try
+{
+    $pdo = new PDO("sqlite:".dirname(__DIR__)."/database.db");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $database = PicoDatabase::fromPdo($pdo);
+}
+catch(Exception $e)
+{
+    $database = null;
+    error_log("ERR: ".$e->getMessage());
+}
+try
+{
+    if($database->isPdoConnected())
+    {
+        require_once __DIR__ . '/install.php';
+    }
+}
+catch(Exception $e)
+{
+    error_log("ERR: ".$e->getMessage());
+    try
+    {
+        require_once __DIR__ . '/install.php';
+    }
+    catch(Exception $e)
+    {
+        error_log("ERR: ".$e->getMessage());
+        $database = null;
+    }
+}
 
 // Run server (port 3000)
 $server = IoServer::factory(
     new HttpServer(
         new WsServer(
-            new SignallingServer()
+            new SignallingServer($database, function($database, $conn){
+
+            })
         )
     ),
-    3000
+    3000,
+    "0.0.0.0"
 );
 
 $server->run();
