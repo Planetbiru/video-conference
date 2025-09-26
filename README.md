@@ -1,4 +1,3 @@
-
 # Video Conference
 
 A **web-based video conferencing application** featuring real-time, room-based communication. It includes video/audio streaming, screen sharing, persistent chat with history, and file sharing. Built with **WebRTC** and **WebSockets** for peer-to-peer communication, and **TailwindCSS** for a responsive UI.
@@ -135,14 +134,51 @@ Add the following configuration to your Apache virtual host file (e.g., `httpd.c
     ServerName domain.tld
     DocumentRoot "/var/www/html"
 
-    # Proxy untuk WebSocket
+    <Directory "/var/www/html">
+        AllowOverride All
+        Require all granted
+    </Directory>
+    
     ProxyPass "/ws/"  "ws://localhost:3000/ws/"
     ProxyPassReverse "/ws/"  "ws://localhost:3000/ws/"
 </VirtualHost>
 ```
 
 
-From the example above, every request to `http://domain.tld/ws/` will be redirected to `ws://localhost:3000/ws/` by the Apache server. This is the easiest way when you don’t have an SSL certificate. You can use services like Cloudflare and similar ones. Use a proxy so that clients can access both your website and your WebSocket using the SSL certificate.
+From the example above, every request to `http://domain.tld/ws/` will be redirected to `ws://localhost:3000/ws/` by the Apache server. This is the easiest way when you don’t have an SSL/TLS certificate. You can use services like Cloudflare and similar ones. Use a proxy so that clients can access both your website and your WebSocket using the SSL/TLS certificate.
+
+If you are using your own SSL/TLS, you can configure it on port 443.
+
+```
+# Make sure these Apache modules are enabled:
+# LoadModule proxy_module modules/mod_proxy.so
+# LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so
+# LoadModule ssl_module modules/mod_ssl.so
+
+<VirtualHost *:443>
+    ServerName domain.com
+    DocumentRoot "/var/www/html"
+
+    # ====== SSL/TLS Config ======
+    SSLEngine on
+    SSLCertificateFile    /etc/ssl/certs/domain.crt
+    SSLCertificateKeyFile /etc/ssl/private/domain.key
+    # Jika ada intermediate certificate:
+    # SSLCertificateChainFile /etc/ssl/certs/domain-chain.crt
+
+    # ====== HTTP normal lewat HTTPS ======
+    <Directory "/var/www/html">
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # ====== Proxy khusus untuk WebSocket ======
+    ProxyPass "/ws/"  "ws://localhost:8080/ws/"
+    ProxyPassReverse "/ws/"  "ws://localhost:8080/ws/"
+</VirtualHost>
+```
+
+Please note that even though you are using your own SSL/TLS certificate, you still point it to `ws://localhost:3000/ws/` instead of `wss://localhost:3000/ws/`. The reason is that your WebSocket server itself is not using SSL/TLS.
 
 ---
 
